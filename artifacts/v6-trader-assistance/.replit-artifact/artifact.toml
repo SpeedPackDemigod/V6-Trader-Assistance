@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "V6 Trader Assistance"
+description = "A responsive, front-end-only AI trading assistant dashboard with V6 AI Chat, Chart Analysis, Trading Journal, and Risk Manager tools. No external services or paid APIs."
+version = "1.0.0"
+id = "artifacts/v6-trader-assistance"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22485
+
+[services.development]
+run = "pnpm --filter @workspace/v6-trader-assistance run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/v6-trader-assistance", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/v6-trader-assistance/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22485"
+BASE_PATH = "/"
