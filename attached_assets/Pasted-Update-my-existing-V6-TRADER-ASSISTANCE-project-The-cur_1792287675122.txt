@@ -1,0 +1,38 @@
+Update my existing V6 TRADER ASSISTANCE project. The current interface and several existing features are already working correctly. I want you to implement the missing functionality for Strategies & Code, News & Research, Education, Backtesting, Settings, and the Open TradingView button.
+
+CRITICAL REQUIREMENTS:
+- Preserve the existing design EXACTLY. Do not redesign, rearrange, replace, or remove the dashboard, cards, navigation, colors, typography, spacing, styling, or existing workspaces.
+- Inspect the existing code before making changes. Reuse the existing components, pages, and functionality wherever possible.
+- Do not break or overwrite any features that already work.
+- Make only the changes necessary to implement the requested functions.
+- Every button, link, input, dropdown, and form must perform its intended action. Do not leave nonfunctional placeholder controls.
+- Do not create duplicate pages or duplicate functionality.
+- Do not require paid APIs, paid services, or broker connections for these features to work in their basic form.
+- Do not invent live market data, news, backtest results, or claims that a feature is connected when it is not.
+
+FEATURE REQUIREMENTS:
+
+1. STRATEGIES & CODE
+Create a functional workspace for generating and exploring trading strategies. Let users describe a strategy, select relevant markets or instruments, review entry and exit rules, specify stop-loss and take-profit rules, and view generated code examples when supported. Include a copy-code button, clear explanations, and a way to edit the strategy. Generated strategies must be labeled as untested until tested. Never claim a strategy is profitable without evidence.
+
+2. NEWS & RESEARCH
+Create a workspace for viewing market news and research summaries, with clickable source links, publication timestamps, and clear source attribution. If no live news provider or API is configured, show a clear message explaining that live news is unavailable and provide useful research tools or verified source links instead. Never fabricate headlines, prices, events, or citations.
+
+3. EDUCATION
+Create an interactive trading education workspace with searchable topics, lessons, definitions, examples, and quizzes. Include support and resistance, breakouts and retests, rejection wicks, candlestick structure, risk management, position sizing, trading psychology, and strategy evaluation. Make lesson and quiz controls functional and display feedback when users submit answers.
+
+4. BACKTESTING
+Create a backtesting workspace where users can specify a strategy, instrument, timeframe, date range, initial balance, position sizing, and risk rules. Where historical data is available, calculate results using actual data and display trade history, net profit/loss, win rate, number of trades, maximum drawdown, and other relevant metrics. Account for fees and slippage where possible. If historical data or a calculation engine is unavailable, explain what is missing and allow a clearly labeled demonstration using sample data. Never present sample results as real results. Do not connect to live trading or place orders.
+
+5. SETTINGS
+Make the settings controls functional. Include available appearance preferences, chart preferences, and configurable default risk parameters. Persist preferences across visits using an appropriate method supported by the existing project. Validate inputs and explain when a setting cannot be saved. Do not store passwords, broker credentials, or API secrets in plain browser storage.
+
+6. OPEN TRADINGVIEW BUTTON
+Make the existing Open TradingView button open https://www.tradingview.com/ in a new browser tab. Preserve the existing button design and styling.
+
+7. INTEGRATION AND TESTING
+Ensure all new workspaces match the existing V6 design and navigation. Add functional back buttons or navigation links where needed. Test each feature and its error states. Check that the existing V6 AI Chat, Chart Analysis, Trading Journal, Risk Manager, dashboard, and navigation still work. Fix any regressions caused by your changes.
+
+If a feature requires a backend, external API, historical dataset, or other service that is not configured, implement whatever safe functionality is possible without it and clearly explain the remaining limitation. Do not fake a working integration.
+
+Before finishing, summarize which features are fully functional, which are partially functional, what external setup is still needed, and what you tested. Keep the existing visual design unchanged.
