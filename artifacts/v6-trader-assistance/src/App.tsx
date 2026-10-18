@@ -6,10 +6,12 @@ import {
   Bell,
   BookOpen,
   Bot,
+  CalendarDays,
   ChartNoAxesCombined,
   Check,
   ChevronDown,
   CircleHelp,
+  CircleDollarSign,
   Clock3,
   Code2,
   GraduationCap,
@@ -34,6 +36,39 @@ type LocalMessage = {
   role: 'user' | 'assistant';
   text: string;
 };
+
+type JournalTrade = {
+  id: number;
+  date: string;
+  symbol: string;
+  direction: 'Long' | 'Short';
+  entryPrice: string;
+  exitPrice: string;
+  pnl: number;
+  setup: string;
+  notes: string;
+};
+
+type JournalDraft = Omit<JournalTrade, 'id' | 'pnl'> & { pnl: string };
+
+const sampleJournalTrades: JournalTrade[] = [
+  { id: 1, date: '2026-10-17', symbol: 'NQ', direction: 'Short', entryPrice: '21,562.25', exitPrice: '21,520.25', pnl: 420, setup: 'Resistance rejection', notes: 'Waited for the lower high before entry.' },
+  { id: 2, date: '2026-10-16', symbol: 'ES', direction: 'Long', entryPrice: '5,982.50', exitPrice: '5,988.25', pnl: 285, setup: 'Opening range reclaim', notes: 'Scaled out into the prior session high.' },
+  { id: 3, date: '2026-10-15', symbol: 'YM', direction: 'Long', entryPrice: '43,310', exitPrice: '43,292', pnl: -180, setup: 'Support bounce', notes: 'Stopped after the level failed to hold.' },
+  { id: 4, date: '2026-10-14', symbol: 'NQ', direction: 'Short', entryPrice: '21,608.50', exitPrice: '21,544.50', pnl: 640, setup: 'Failed breakout', notes: 'Good patience; entry followed the retest.' },
+  { id: 5, date: '2026-10-13', symbol: 'ES', direction: 'Short', entryPrice: '5,996.75', exitPrice: '5,998.65', pnl: -95, setup: 'VWAP rejection', notes: 'Entered before confirmation; review sizing.' },
+];
+
+const emptyJournalDraft = (): JournalDraft => ({
+  date: new Date().toISOString().slice(0, 10),
+  symbol: 'NQ',
+  direction: 'Long',
+  entryPrice: '',
+  exitPrice: '',
+  pnl: '',
+  setup: '',
+  notes: '',
+});
 
 const primaryNavigation = [
   { name: 'Chat', icon: MessageCircle },
@@ -126,6 +161,11 @@ function formatPriceY(price: number) {
   return 12 + ((21620 - price) / (21620 - 21460)) * 220;
 }
 
+function formatJournalCurrency(value: number) {
+  const amount = Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${value < 0 ? '−' : '+'}$${amount}`;
+}
+
 function PriceChart({ timeframe }: { timeframe: string }) {
   return (
     <div className="chart-plot" role="img" aria-label={`Illustrative NQ candlestick chart, ${timeframe} timeframe`}>
@@ -188,12 +228,17 @@ function PriceChart({ timeframe }: { timeframe: string }) {
 function App() {
   const [activeNavigation, setActiveNavigation] = useState('Chat');
   const [isDedicatedChatOpen, setIsDedicatedChatOpen] = useState(false);
+  const [isTradeJournalOpen, setIsTradeJournalOpen] = useState(false);
   const [selectedWorkspace, setSelectedWorkspace] = useState('Futures Trading');
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolCode>('NQ');
   const [selectedTimeframe, setSelectedTimeframe] = useState<(typeof timeframes)[number]>('5m');
   const [selectedChartTab, setSelectedChartTab] = useState<(typeof chartTabs)[number]>('Chart');
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<LocalMessage[]>([]);
+  const [journalTrades, setJournalTrades] = useState(sampleJournalTrades);
+  const [journalFilter, setJournalFilter] = useState<'All' | 'Wins' | 'Losses'>('All');
+  const [isJournalEntryFormOpen, setIsJournalEntryFormOpen] = useState(false);
+  const [journalDraft, setJournalDraft] = useState<JournalDraft>(emptyJournalDraft);
   const [isProMode, setIsProMode] = useState(false);
   const [toast, setToast] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -212,11 +257,14 @@ function App() {
   const openDedicatedChat = () => {
     setActiveNavigation('Chat');
     setIsDedicatedChatOpen(true);
+    setIsTradeJournalOpen(false);
     window.requestAnimationFrame(() => composerRef.current?.focus());
   };
 
   const returnToDashboard = () => {
     setIsDedicatedChatOpen(false);
+    setIsTradeJournalOpen(false);
+    setIsJournalEntryFormOpen(false);
     setActiveNavigation('Chat');
   };
 
@@ -227,15 +275,30 @@ function App() {
       return;
     }
     setIsDedicatedChatOpen(false);
+    setIsTradeJournalOpen(name === 'Trade Journal');
     if (name === 'Chart Analysis') {
       window.requestAnimationFrame(() => document.getElementById('market-chart')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     } else if (name === 'Trade Journal') {
-      notify('Trade Journal is shown in this sample workspace.');
+      setIsTradeJournalOpen(true);
     } else if (name === 'Market Analysis') {
       window.requestAnimationFrame(() => document.getElementById('market-overview')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     } else {
       notify(`${name} is a local demo navigation item.`);
     }
+  };
+
+  const addJournalTrade = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trade: JournalTrade = {
+      ...journalDraft,
+      id: Date.now(),
+      pnl: Number(journalDraft.pnl),
+    };
+    setJournalTrades((current) => [trade, ...current]);
+    setJournalFilter('All');
+    setJournalDraft(emptyJournalDraft());
+    setIsJournalEntryFormOpen(false);
+    notify('Trade added to your local demo journal.');
   };
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
@@ -276,6 +339,10 @@ function App() {
   };
 
   const activeQuote = quotes[selectedSymbol];
+  const journalWins = journalTrades.filter((trade) => trade.pnl > 0);
+  const journalLosses = journalTrades.filter((trade) => trade.pnl <= 0);
+  const journalTotalPnl = journalTrades.reduce((total, trade) => total + trade.pnl, 0);
+  const visibleJournalTrades = journalTrades.filter((trade) => journalFilter === 'All' || (journalFilter === 'Wins' ? trade.pnl > 0 : trade.pnl <= 0));
 
   return (
     <div className="app-shell">
@@ -369,8 +436,96 @@ function App() {
         </div>
       </aside>
 
-      <main className={`main-area${isDedicatedChatOpen ? ' dedicated-chat-mode' : ''}`}>
-        {isDedicatedChatOpen ? (
+      <main className={`main-area${isDedicatedChatOpen || isTradeJournalOpen ? ' dedicated-chat-mode' : ''}`}>
+        {isTradeJournalOpen ? (
+          <section className="journal-workspace" aria-label="Trade Journal">
+            <header className="dedicated-chat-header">
+              <div className="dedicated-chat-identity">
+                <div className="analysis-logo"><BookOpen size={15} /></div>
+                <div>
+                  <h1>Trade Journal</h1>
+                  <p>Personal trade log · Local browser demo</p>
+                </div>
+              </div>
+              <button className="return-dashboard-button" onClick={returnToDashboard} data-testid="button-journal-back-to-dashboard">
+                <ArrowLeft size={14} /><span>Back to Dashboard</span>
+              </button>
+            </header>
+
+            <div className="journal-workspace-content">
+              <div className="journal-page-heading">
+                <div>
+                  <h2>Your trading journal</h2>
+                  <p>Review the decisions behind each trade and keep a record of your process.</p>
+                </div>
+                <button className="journal-add-button" onClick={() => { setJournalDraft(emptyJournalDraft()); setIsJournalEntryFormOpen((open) => !open); }} data-testid="button-add-journal-trade">
+                  <Plus size={14} /><span>{isJournalEntryFormOpen ? 'Close form' : 'Log a trade'}</span>
+                </button>
+              </div>
+
+              {isJournalEntryFormOpen && (
+                <form className="journal-entry-form" onSubmit={addJournalTrade} data-testid="form-journal-trade">
+                  <div className="journal-form-heading">
+                    <div><h3>New journal entry</h3><p>Saved in this browser demo only.</p></div>
+                    <button type="button" className="journal-cancel-button" onClick={() => setIsJournalEntryFormOpen(false)} data-testid="button-cancel-journal-trade">Cancel</button>
+                  </div>
+                  <div className="journal-form-grid">
+                    <label>Date<input type="date" value={journalDraft.date} onChange={(event) => setJournalDraft((draft) => ({ ...draft, date: event.target.value }))} required data-testid="input-journal-date" /></label>
+                    <label>Symbol<select value={journalDraft.symbol} onChange={(event) => setJournalDraft((draft) => ({ ...draft, symbol: event.target.value }))} data-testid="select-journal-symbol"><option>NQ</option><option>ES</option><option>YM</option></select></label>
+                    <label>Side<select value={journalDraft.direction} onChange={(event) => setJournalDraft((draft) => ({ ...draft, direction: event.target.value as JournalTrade['direction'] }))} data-testid="select-journal-side"><option>Long</option><option>Short</option></select></label>
+                    <label>Entry price<input type="number" min="0" step="0.01" value={journalDraft.entryPrice} onChange={(event) => setJournalDraft((draft) => ({ ...draft, entryPrice: event.target.value }))} placeholder="0.00" required data-testid="input-journal-entry-price" /></label>
+                    <label>Exit price<input type="number" min="0" step="0.01" value={journalDraft.exitPrice} onChange={(event) => setJournalDraft((draft) => ({ ...draft, exitPrice: event.target.value }))} placeholder="0.00" required data-testid="input-journal-exit-price" /></label>
+                    <label>Net P&amp;L ($)<input type="number" step="0.01" value={journalDraft.pnl} onChange={(event) => setJournalDraft((draft) => ({ ...draft, pnl: event.target.value }))} placeholder="e.g. 125 or -50" required data-testid="input-journal-pnl" /></label>
+                    <label className="journal-form-wide">Setup<input value={journalDraft.setup} onChange={(event) => setJournalDraft((draft) => ({ ...draft, setup: event.target.value }))} placeholder="e.g. Opening range breakout" required data-testid="input-journal-setup" /></label>
+                    <label className="journal-form-wide">Notes<textarea value={journalDraft.notes} onChange={(event) => setJournalDraft((draft) => ({ ...draft, notes: event.target.value }))} placeholder="What went well? What would you change?" rows={2} data-testid="input-journal-notes" /></label>
+                  </div>
+                  <div className="journal-form-actions">
+                    <span>Local demo · No brokerage or market service connected</span>
+                    <button className="journal-save-button" type="submit" data-testid="button-save-journal-trade"><Check size={13} />Save entry</button>
+                  </div>
+                </form>
+              )}
+
+              <div className="journal-stats-grid" aria-label="Journal summary">
+                <article className="journal-stat-card"><span><CircleDollarSign size={13} /> Net P&amp;L</span><strong className={journalTotalPnl >= 0 ? 'journal-positive' : 'journal-negative'}>{formatJournalCurrency(journalTotalPnl)}</strong><small>Across {journalTrades.length} sample trades</small></article>
+                <article className="journal-stat-card"><span><TrendingUp size={13} /> Win rate</span><strong>{journalTrades.length ? `${Math.round((journalWins.length / journalTrades.length) * 100)}%` : '—'}</strong><small>{journalWins.length} winning trades</small></article>
+                <article className="journal-stat-card"><span><BookOpen size={13} /> Trades logged</span><strong>{journalTrades.length}</strong><small>Local journal entries</small></article>
+                <article className="journal-stat-card"><span><CalendarDays size={13} /> Average winner</span><strong className="journal-positive">{formatJournalCurrency(journalWins.length ? journalWins.reduce((total, trade) => total + trade.pnl, 0) / journalWins.length : 0)}</strong><small>Per profitable trade</small></article>
+              </div>
+
+              <section className="journal-history-card" aria-label="Trade history">
+                <div className="journal-history-heading">
+                  <div><h3>Trade history</h3><p>Sample entries for your review</p></div>
+                  <div className="journal-filter-list" role="group" aria-label="Filter trades">
+                    {(['All', 'Wins', 'Losses'] as const).map((filter) => (
+                      <button key={filter} className={journalFilter === filter ? 'journal-filter-active' : ''} onClick={() => setJournalFilter(filter)} aria-pressed={journalFilter === filter} data-testid={`filter-journal-${filter.toLowerCase()}`}>{filter}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="journal-table-scroll">
+                  <table className="journal-trade-table">
+                    <thead><tr><th>Date</th><th>Trade</th><th>Entry / Exit</th><th>Setup &amp; notes</th><th>Net P&amp;L</th></tr></thead>
+                    <tbody>
+                      {visibleJournalTrades.map((trade) => (
+                        <tr key={trade.id} data-testid={`journal-trade-${trade.id}`}>
+                          <td className="journal-date-cell">{new Date(`${trade.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td><span className="journal-symbol">{trade.symbol}</span><span className={`journal-direction ${trade.direction === 'Long' ? 'journal-long' : 'journal-short'}`}>{trade.direction}</span></td>
+                          <td><span>{trade.entryPrice}</span><small>{trade.exitPrice}</small></td>
+                          <td><strong className="journal-setup">{trade.setup}</strong>{trade.notes && <small className="journal-notes">{trade.notes}</small>}</td>
+                          <td className={trade.pnl >= 0 ? 'journal-positive' : 'journal-negative'}>{formatJournalCurrency(trade.pnl)}</td>
+                        </tr>
+                      ))}
+                      {visibleJournalTrades.length === 0 && (
+                        <tr><td className="journal-empty-row" colSpan={5}>No trades in this filter yet. Log a trade to add one to your journal.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="journal-disclaimer">Illustrative sample entries · Changes are held in this browser session and reset when refreshed · Not financial advice</p>
+              </section>
+            </div>
+          </section>
+        ) : isDedicatedChatOpen ? (
           <section className="dedicated-chat-view" aria-label="V6 AI Chat">
             <header className="dedicated-chat-header">
               <div className="dedicated-chat-identity">
