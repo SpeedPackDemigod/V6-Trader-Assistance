@@ -282,10 +282,90 @@ function PriceChart({ timeframe }: { timeframe: string }) {
   );
 }
 
+type ChartWorkspaceProps = {
+  selectedSymbol: SymbolCode;
+  onSymbolChange: (symbol: SymbolCode) => void;
+  selectedTimeframe: (typeof timeframes)[number];
+  onTimeframeChange: (timeframe: (typeof timeframes)[number]) => void;
+  selectedChartTab: (typeof chartTabs)[number];
+  onChartTabChange: (tab: (typeof chartTabs)[number]) => void;
+  onNotify: (message: string) => void;
+  focused?: boolean;
+};
+
+function ChartWorkspace({
+  selectedSymbol,
+  onSymbolChange,
+  selectedTimeframe,
+  onTimeframeChange,
+  selectedChartTab,
+  onChartTabChange,
+  onNotify,
+  focused = false,
+}: ChartWorkspaceProps) {
+  return (
+    <section className={`right-card chart-card${focused ? ' chart-card-focused' : ''}`} id="market-chart">
+      <div className="chart-tab-bar" role="tablist" aria-label="Chart tools">
+        {chartTabs.map((tab) => (
+          <button className={selectedChartTab === tab ? 'chart-tab chart-tab-active' : 'chart-tab'} key={tab} role="tab" aria-selected={selectedChartTab === tab} onClick={() => onChartTabChange(tab)} data-testid={`tab-${tab.toLowerCase().replaceAll(' ', '-')}`}>{tab}</button>
+        ))}
+        <button className="chart-expand" aria-label="Chart options" onClick={() => onNotify('Chart controls are sample-only.')} data-testid="button-chart-options"><MoreHorizontal size={15} /></button>
+      </div>
+      <div className="chart-toolbar">
+        <label className="symbol-select">
+          <span className="symbol-icon"><Activity size={12} /></span>
+          <select aria-label="Chart symbol" value={selectedSymbol} onChange={(event) => onSymbolChange(event.target.value as SymbolCode)} data-testid="select-chart-symbol">
+            <option value="NQ">NQ 06-25</option><option value="ES">ES 06-25</option><option value="YM">YM 06-25</option>
+          </select>
+          <ChevronDown size={12} />
+        </label>
+        <button className="chart-toolbar-button" aria-label="Add indicator" onClick={() => onChartTabChange('Indicators')} data-testid="button-add-indicator"><Plus size={14} /></button>
+      </div>
+      <div className="timeframe-list" aria-label="Chart timeframes">
+        {timeframes.map((timeframe) => (
+          <button className={selectedTimeframe === timeframe ? 'timeframe-option timeframe-active' : 'timeframe-option'} key={timeframe} onClick={() => onTimeframeChange(timeframe)} data-testid={`timeframe-${timeframe}`}>{timeframe}</button>
+        ))}
+        <button className="timeframe-more" aria-label="More timeframes" onClick={() => onNotify('More timeframes are not enabled in the demo.')} data-testid="button-more-timeframes"><MoreHorizontal size={13} /></button>
+      </div>
+
+      {selectedChartTab === 'Chart' ? (
+        <div className="chart-body">
+          <div className="chart-instrument-title"><span>{selectedSymbol} · {selectedTimeframe}</span><small><span className="status-dot" /> Sample</small></div>
+          <PriceChart timeframe={selectedTimeframe} />
+        </div>
+      ) : selectedChartTab === 'Indicators' ? (
+        <div className="chart-tool-panel">
+          <h3>Indicators</h3>
+          <p>Illustrative overlays for this sample chart</p>
+          <div className="indicator-row"><span className="indicator-swatch violet-swatch" /> EMA 20 <b>21,537.25</b><Check size={13} /></div>
+          <div className="indicator-row"><span className="indicator-swatch teal-swatch" /> VWAP <b>21,519.50</b><Check size={13} /></div>
+          <div className="indicator-row"><span className="indicator-swatch amber-swatch" /> RSI 14 <b>42.8</b><Check size={13} /></div>
+        </div>
+      ) : (
+        <div className="chart-tool-panel drawing-panel">
+          <h3>Drawing tools</h3>
+          <p>Choose a tool to preview it on the sample chart</p>
+          <div className="drawing-tools">
+            {['Cursor', 'Trend line', 'Horizontal level', 'Text note'].map((tool) => (
+              <button key={tool} onClick={() => onNotify(`${tool} selected for the sample chart.`)} data-testid={`drawing-${tool.toLowerCase().replaceAll(' ', '-')}`}><CrosshairIcon /> {tool}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="chart-legend">
+        {timeframes.slice(0, 4).map((frame) => <span key={frame}>{frame === '1m' ? '07:00' : frame === '5m' ? '08:00' : frame === '15m' ? '09:00' : '10:00'}</span>)}
+        <span>11:00</span><span>12:00</span>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [activeNavigation, setActiveNavigation] = useState('Chat');
   const [isDedicatedChatOpen, setIsDedicatedChatOpen] = useState(false);
   const [isTradeJournalOpen, setIsTradeJournalOpen] = useState(false);
+  const [isChartAnalysisOpen, setIsChartAnalysisOpen] = useState(false);
   const [selectedWorkspace, setSelectedWorkspace] = useState('Futures Trading');
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolCode>('NQ');
   const [selectedTimeframe, setSelectedTimeframe] = useState<(typeof timeframes)[number]>('5m');
@@ -317,12 +397,14 @@ function App() {
     setActiveNavigation('Chat');
     setIsDedicatedChatOpen(true);
     setIsTradeJournalOpen(false);
+    setIsChartAnalysisOpen(false);
     window.requestAnimationFrame(() => composerRef.current?.focus());
   };
 
   const returnToDashboard = () => {
     setIsDedicatedChatOpen(false);
     setIsTradeJournalOpen(false);
+    setIsChartAnalysisOpen(false);
     setIsJournalEntryFormOpen(false);
     setActiveNavigation('Chat');
   };
@@ -335,8 +417,9 @@ function App() {
     }
     setIsDedicatedChatOpen(false);
     setIsTradeJournalOpen(name === 'Trade Journal');
+    setIsChartAnalysisOpen(name === 'Chart Analysis');
     if (name === 'Chart Analysis') {
-      window.requestAnimationFrame(() => document.getElementById('market-chart')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+      return;
     } else if (name === 'Trade Journal') {
       setIsTradeJournalOpen(true);
     } else if (name === 'Market Analysis') {
@@ -393,8 +476,8 @@ function App() {
 
   const runQuickAction = (action: string) => {
     if (action === 'Analyze Chart') {
-      handleNavigation('Chart Analysis');
-      focusComposer('Analyze this chart and outline the key levels.');
+      setDraft('Analyze this chart and outline the key levels.');
+      openDedicatedChat();
     } else if (action === 'Check Market News') {
       handleNavigation('News & Research');
     } else if (action === 'View Journal') {
@@ -503,7 +586,7 @@ function App() {
         </div>
       </aside>
 
-      <main className={`main-area${isDedicatedChatOpen || isTradeJournalOpen ? ' dedicated-chat-mode' : ''}`}>
+      <main className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen ? ' dedicated-chat-mode' : ''}${isChartAnalysisOpen ? ' chart-analysis-mode' : ''}`}>
         {isTradeJournalOpen ? (
           <section className="journal-workspace" aria-label="Trade Journal">
             <header className="dedicated-chat-header">
@@ -651,6 +734,33 @@ function App() {
               <button className="send-button" type="submit" aria-label="Send message" data-testid="button-dedicated-send"><Send size={15} /></button>
             </form>
             <p className="dedicated-chat-disclaimer">Local demo · Replies are illustrative only · No trades are executed · Not financial advice</p>
+          </section>
+        ) : isChartAnalysisOpen ? (
+          <section className="chart-analysis-view" aria-label="Chart Analysis">
+            <header className="dedicated-chat-header chart-analysis-header">
+              <div className="dedicated-chat-identity">
+                <div className="analysis-logo"><ChartNoAxesCombined size={15} /></div>
+                <div>
+                  <h1>Chart Analysis</h1>
+                  <p>Illustrative sample chart · No live market data</p>
+                </div>
+              </div>
+              <button className="return-dashboard-button" onClick={returnToDashboard} data-testid="button-chart-analysis-back-to-dashboard">
+                <ArrowLeft size={14} /><span>Back to Dashboard</span>
+              </button>
+            </header>
+            <div className="chart-analysis-panel">
+              <ChartWorkspace
+                selectedSymbol={selectedSymbol}
+                onSymbolChange={setSelectedSymbol}
+                selectedTimeframe={selectedTimeframe}
+                onTimeframeChange={setSelectedTimeframe}
+                selectedChartTab={selectedChartTab}
+                onChartTabChange={setSelectedChartTab}
+                onNotify={notify}
+                focused
+              />
+            </div>
           </section>
         ) : (
           <>
@@ -806,60 +916,15 @@ function App() {
         </div>
 
         <aside className="right-column" aria-label="Market workspace">
-          <section className="right-card chart-card" id="market-chart">
-            <div className="chart-tab-bar" role="tablist" aria-label="Chart tools">
-              {chartTabs.map((tab) => (
-                <button className={selectedChartTab === tab ? 'chart-tab chart-tab-active' : 'chart-tab'} key={tab} role="tab" aria-selected={selectedChartTab === tab} onClick={() => setSelectedChartTab(tab)} data-testid={`tab-${tab.toLowerCase().replaceAll(' ', '-')}`}>{tab}</button>
-              ))}
-              <button className="chart-expand" aria-label="Chart options" onClick={() => notify('Chart controls are sample-only.')} data-testid="button-chart-options"><MoreHorizontal size={15} /></button>
-            </div>
-            <div className="chart-toolbar">
-              <label className="symbol-select">
-                <span className="symbol-icon"><Activity size={12} /></span>
-                <select aria-label="Chart symbol" value={selectedSymbol} onChange={(event) => setSelectedSymbol(event.target.value as SymbolCode)} data-testid="select-chart-symbol">
-                  <option value="NQ">NQ 06-25</option><option value="ES">ES 06-25</option><option value="YM">YM 06-25</option>
-                </select>
-                <ChevronDown size={12} />
-              </label>
-              <button className="chart-toolbar-button" aria-label="Add indicator" onClick={() => setSelectedChartTab('Indicators')} data-testid="button-add-indicator"><Plus size={14} /></button>
-            </div>
-            <div className="timeframe-list" aria-label="Chart timeframes">
-              {timeframes.map((timeframe) => (
-                <button className={selectedTimeframe === timeframe ? 'timeframe-option timeframe-active' : 'timeframe-option'} key={timeframe} onClick={() => setSelectedTimeframe(timeframe)} data-testid={`timeframe-${timeframe}`}>{timeframe}</button>
-              ))}
-              <button className="timeframe-more" aria-label="More timeframes" onClick={() => notify('More timeframes are not enabled in the demo.')} data-testid="button-more-timeframes"><MoreHorizontal size={13} /></button>
-            </div>
-
-            {selectedChartTab === 'Chart' ? (
-              <div className="chart-body">
-                <div className="chart-instrument-title"><span>{selectedSymbol} · {selectedTimeframe}</span><small><span className="status-dot" /> Sample</small></div>
-                <PriceChart timeframe={selectedTimeframe} />
-              </div>
-            ) : selectedChartTab === 'Indicators' ? (
-              <div className="chart-tool-panel">
-                <h3>Indicators</h3>
-                <p>Illustrative overlays for this sample chart</p>
-                <div className="indicator-row"><span className="indicator-swatch violet-swatch" /> EMA 20 <b>21,537.25</b><Check size={13} /></div>
-                <div className="indicator-row"><span className="indicator-swatch teal-swatch" /> VWAP <b>21,519.50</b><Check size={13} /></div>
-                <div className="indicator-row"><span className="indicator-swatch amber-swatch" /> RSI 14 <b>42.8</b><Check size={13} /></div>
-              </div>
-            ) : (
-              <div className="chart-tool-panel drawing-panel">
-                <h3>Drawing tools</h3>
-                <p>Choose a tool to preview it on the sample chart</p>
-                <div className="drawing-tools">
-                  {['Cursor', 'Trend line', 'Horizontal level', 'Text note'].map((tool) => (
-                    <button key={tool} onClick={() => notify(`${tool} selected for the sample chart.`)} data-testid={`drawing-${tool.toLowerCase().replaceAll(' ', '-')}`}><CrosshairIcon /> {tool}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="chart-legend">
-              {timeframes.slice(0, 4).map((frame) => <span key={frame}>{frame === '1m' ? '07:00' : frame === '5m' ? '08:00' : frame === '15m' ? '09:00' : '10:00'}</span>)}
-              <span>11:00</span><span>12:00</span>
-            </div>
-          </section>
+          <ChartWorkspace
+            selectedSymbol={selectedSymbol}
+            onSymbolChange={setSelectedSymbol}
+            selectedTimeframe={selectedTimeframe}
+            onTimeframeChange={setSelectedTimeframe}
+            selectedChartTab={selectedChartTab}
+            onChartTabChange={setSelectedChartTab}
+            onNotify={notify}
+          />
 
           <section className="right-card market-card" id="market-overview">
             <div className="right-card-heading"><div className="right-card-title"><Activity size={14} /><h2>Market Overview</h2></div><span className="small-badge">Futures</span></div>

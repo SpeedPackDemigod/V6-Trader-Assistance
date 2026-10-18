@@ -510,6 +510,33 @@ select:focus-visible {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.main-area.chart-analysis-mode {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-analysis-view {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chart-analysis-header {
+  flex: 0 0 auto;
+  border: 1px solid rgba(46, 60, 91, .72);
+  border-radius: 9px;
+  background: linear-gradient(148deg, rgba(9, 15, 29, .98), rgba(6, 11, 22, .99));
+}
+
+.chart-analysis-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
 .dedicated-chat-view {
   display: flex;
   width: 100%;
@@ -1351,6 +1378,75 @@ select:focus-visible {
 
 .chart-card {
   min-height: 276px;
+}
+
+.chart-card-focused {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  border: 1px solid rgba(46, 60, 91, .72);
+  border-radius: 9px;
+  background: linear-gradient(148deg, rgba(9, 15, 29, .98), rgba(6, 11, 22, .99));
+}
+
+.chart-card-focused .chart-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 10px 12px 0;
+}
+
+.chart-card-focused .chart-instrument-title {
+  padding: 4px 6px 10px;
+  font-size: 11px;
+}
+
+.chart-card-focused .chart-instrument-title small {
+  font-size: 8px;
+}
+
+.chart-card-focused .chart-plot {
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: 52px minmax(0, 1fr);
+  padding-right: 8px;
+}
+
+.chart-card-focused .chart-price-axis {
+  font-size: 8px;
+}
+
+.chart-card-focused .chart-svg-wrap {
+  height: 100%;
+  background-size: 100% 40px, 64px 100%;
+}
+
+.chart-card-focused .chart-times {
+  padding-top: 8px;
+  font-size: 8px;
+}
+
+.chart-card-focused .chart-tool-panel {
+  min-height: 0;
+  flex: 1;
+  padding: 24px;
+}
+
+.chart-card-focused .chart-tool-panel h3 {
+  font-size: 13px;
+}
+
+.chart-card-focused .chart-tool-panel > p {
+  font-size: 9px;
+}
+
+.chart-card-focused .indicator-row {
+  padding-block: 12px;
+  font-size: 10px;
 }
 
 .chart-tab-bar {
@@ -2559,6 +2655,18 @@ select:focus-visible {
 
   .dedicated-chat-view {
     min-height: calc(100dvh - 124px);
+  }
+
+  .chart-analysis-view {
+    min-height: calc(100dvh - 124px);
+  }
+
+  .chart-analysis-panel {
+    min-height: 420px;
+  }
+
+  .chart-card-focused {
+    min-height: 420px;
   }
 
   .journal-workspace {
