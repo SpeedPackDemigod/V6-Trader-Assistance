@@ -2261,6 +2261,16 @@ select:focus-visible {
   font-size: 7px;
 }
 
+.journal-storage-notice {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(125, 100, 190, .38);
+  border-radius: 6px;
+  background: rgba(78, 54, 128, .14);
+  color: #c7b5f2;
+  font-size: 8px;
+}
+
 .journal-entry-form {
   padding: 13px;
   background: rgba(9, 15, 29, .9);

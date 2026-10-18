@@ -50,6 +50,9 @@ type JournalTrade = {
 };
 
 type JournalDraft = Omit<JournalTrade, 'id' | 'pnl'> & { pnl: string };
+type JournalStorageRead = { entries: JournalTrade[]; notice: string };
+
+const JOURNAL_STORAGE_KEY = 'v6-trader-assistance:journal-trades:v1';
 
 const sampleJournalTrades: JournalTrade[] = [
   { id: 1, date: '2026-10-17', symbol: 'NQ', direction: 'Short', entryPrice: '21,562.25', exitPrice: '21,520.25', pnl: 420, setup: 'Resistance rejection', notes: 'Waited for the lower high before entry.' },
@@ -58,6 +61,60 @@ const sampleJournalTrades: JournalTrade[] = [
   { id: 4, date: '2026-10-14', symbol: 'NQ', direction: 'Short', entryPrice: '21,608.50', exitPrice: '21,544.50', pnl: 640, setup: 'Failed breakout', notes: 'Good patience; entry followed the retest.' },
   { id: 5, date: '2026-10-13', symbol: 'ES', direction: 'Short', entryPrice: '5,996.75', exitPrice: '5,998.65', pnl: -95, setup: 'VWAP rejection', notes: 'Entered before confirmation; review sizing.' },
 ];
+
+function isJournalTrade(value: unknown): value is JournalTrade {
+  if (!value || typeof value !== 'object') return false;
+  const trade = value as Record<string, unknown>;
+  return (
+    typeof trade.id === 'number' &&
+    Number.isSafeInteger(trade.id) &&
+    trade.id > 0 &&
+    typeof trade.date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(trade.date) &&
+    !Number.isNaN(Date.parse(`${trade.date}T12:00:00`)) &&
+    ['NQ', 'ES', 'YM'].includes(String(trade.symbol)) &&
+    (trade.direction === 'Long' || trade.direction === 'Short') &&
+    typeof trade.entryPrice === 'string' &&
+    typeof trade.exitPrice === 'string' &&
+    typeof trade.pnl === 'number' &&
+    Number.isFinite(trade.pnl) &&
+    typeof trade.setup === 'string' &&
+    typeof trade.notes === 'string'
+  );
+}
+
+function readStoredJournalTrades(): JournalStorageRead {
+  if (typeof window === 'undefined') return { entries: [], notice: '' };
+
+  try {
+    const raw = window.localStorage.getItem(JOURNAL_STORAGE_KEY);
+    if (!raw) return { entries: [], notice: '' };
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return { entries: [], notice: 'Saved entries could not be read. The built-in sample trades are still available.' };
+    }
+
+    const uniqueEntries = new Map<number, JournalTrade>();
+    let skippedCount = 0;
+    for (const item of parsed) {
+      if (!isJournalTrade(item) || uniqueEntries.has(item.id)) {
+        skippedCount += 1;
+        continue;
+      }
+      uniqueEntries.set(item.id, item);
+    }
+
+    return {
+      entries: [...uniqueEntries.values()].sort((a, b) => b.id - a.id),
+      notice: skippedCount
+        ? `${skippedCount} saved journal ${skippedCount === 1 ? 'entry was' : 'entries were'} skipped because the data was incomplete.`
+        : '',
+    };
+  } catch {
+    return { entries: [], notice: 'Saved entries could not be read from this browser. The built-in sample trades are still available.' };
+  }
+}
 
 const emptyJournalDraft = (): JournalDraft => ({
   date: new Date().toISOString().slice(0, 10),
@@ -235,7 +292,9 @@ function App() {
   const [selectedChartTab, setSelectedChartTab] = useState<(typeof chartTabs)[number]>('Chart');
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<LocalMessage[]>([]);
-  const [journalTrades, setJournalTrades] = useState(sampleJournalTrades);
+  const [journalStorageRead] = useState(readStoredJournalTrades);
+  const [userJournalTrades, setUserJournalTrades] = useState(journalStorageRead.entries);
+  const [journalStorageNotice, setJournalStorageNotice] = useState(journalStorageRead.notice);
   const [journalFilter, setJournalFilter] = useState<'All' | 'Wins' | 'Losses'>('All');
   const [isJournalEntryFormOpen, setIsJournalEntryFormOpen] = useState(false);
   const [journalDraft, setJournalDraft] = useState<JournalDraft>(emptyJournalDraft);
@@ -291,10 +350,17 @@ function App() {
     event.preventDefault();
     const trade: JournalTrade = {
       ...journalDraft,
-      id: Date.now(),
+      id: Math.max(Date.now(), ...userJournalTrades.map((entry) => entry.id + 1)),
       pnl: Number(journalDraft.pnl),
     };
-    setJournalTrades((current) => [trade, ...current]);
+    const nextUserTrades = [trade, ...userJournalTrades];
+    setUserJournalTrades(nextUserTrades);
+    try {
+      window.localStorage.setItem(JOURNAL_STORAGE_KEY, JSON.stringify(nextUserTrades));
+      setJournalStorageNotice('Your journal entries are saved in this browser.');
+    } catch {
+      setJournalStorageNotice('This browser could not save the entry. It will remain available until you leave this page.');
+    }
     setJournalFilter('All');
     setJournalDraft(emptyJournalDraft());
     setIsJournalEntryFormOpen(false);
@@ -339,6 +405,7 @@ function App() {
   };
 
   const activeQuote = quotes[selectedSymbol];
+  const journalTrades = [...userJournalTrades, ...sampleJournalTrades];
   const journalWins = journalTrades.filter((trade) => trade.pnl > 0);
   const journalLosses = journalTrades.filter((trade) => trade.pnl <= 0);
   const journalTotalPnl = journalTrades.reduce((total, trade) => total + trade.pnl, 0);
@@ -463,6 +530,8 @@ function App() {
                 </button>
               </div>
 
+              {journalStorageNotice && <p className="journal-storage-notice" role="status">{journalStorageNotice}</p>}
+
               {isJournalEntryFormOpen && (
                 <form className="journal-entry-form" onSubmit={addJournalTrade} data-testid="form-journal-trade">
                   <div className="journal-form-heading">
@@ -487,7 +556,7 @@ function App() {
               )}
 
               <div className="journal-stats-grid" aria-label="Journal summary">
-                <article className="journal-stat-card"><span><CircleDollarSign size={13} /> Net P&amp;L</span><strong className={journalTotalPnl >= 0 ? 'journal-positive' : 'journal-negative'}>{formatJournalCurrency(journalTotalPnl)}</strong><small>Across {journalTrades.length} sample trades</small></article>
+                <article className="journal-stat-card"><span><CircleDollarSign size={13} /> Net P&amp;L</span><strong className={journalTotalPnl >= 0 ? 'journal-positive' : 'journal-negative'}>{formatJournalCurrency(journalTotalPnl)}</strong><small>Across sample and saved trades</small></article>
                 <article className="journal-stat-card"><span><TrendingUp size={13} /> Win rate</span><strong>{journalTrades.length ? `${Math.round((journalWins.length / journalTrades.length) * 100)}%` : '—'}</strong><small>{journalWins.length} winning trades</small></article>
                 <article className="journal-stat-card"><span><BookOpen size={13} /> Trades logged</span><strong>{journalTrades.length}</strong><small>Local journal entries</small></article>
                 <article className="journal-stat-card"><span><CalendarDays size={13} /> Average winner</span><strong className="journal-positive">{formatJournalCurrency(journalWins.length ? journalWins.reduce((total, trade) => total + trade.pnl, 0) / journalWins.length : 0)}</strong><small>Per profitable trade</small></article>
@@ -495,7 +564,7 @@ function App() {
 
               <section className="journal-history-card" aria-label="Trade history">
                 <div className="journal-history-heading">
-                  <div><h3>Trade history</h3><p>Sample entries for your review</p></div>
+                  <div><h3>Trade history</h3><p>Built-in examples and your saved entries</p></div>
                   <div className="journal-filter-list" role="group" aria-label="Filter trades">
                     {(['All', 'Wins', 'Losses'] as const).map((filter) => (
                       <button key={filter} className={journalFilter === filter ? 'journal-filter-active' : ''} onClick={() => setJournalFilter(filter)} aria-pressed={journalFilter === filter} data-testid={`filter-journal-${filter.toLowerCase()}`}>{filter}</button>
@@ -521,7 +590,7 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-                <p className="journal-disclaimer">Illustrative sample entries · Changes are held in this browser session and reset when refreshed · Not financial advice</p>
+                <p className="journal-disclaimer">Built-in examples stay separate from your entries. Added trades are saved in this browser only · Not financial advice</p>
               </section>
             </div>
           </section>
