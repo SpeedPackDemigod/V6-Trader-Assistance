@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
   Activity,
+  ArrowLeft,
   ArrowUpRight,
   Bell,
   BookOpen,
@@ -186,6 +187,7 @@ function PriceChart({ timeframe }: { timeframe: string }) {
 
 function App() {
   const [activeNavigation, setActiveNavigation] = useState('Chat');
+  const [isDedicatedChatOpen, setIsDedicatedChatOpen] = useState(false);
   const [selectedWorkspace, setSelectedWorkspace] = useState('Futures Trading');
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolCode>('NQ');
   const [selectedTimeframe, setSelectedTimeframe] = useState<(typeof timeframes)[number]>('5m');
@@ -207,15 +209,31 @@ function App() {
     document.getElementById('chat-composer')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
+  const openDedicatedChat = () => {
+    setActiveNavigation('Chat');
+    setIsDedicatedChatOpen(true);
+    window.requestAnimationFrame(() => composerRef.current?.focus());
+  };
+
+  const returnToDashboard = () => {
+    setIsDedicatedChatOpen(false);
+    setActiveNavigation('Chat');
+  };
+
   const handleNavigation = (name: string) => {
     setActiveNavigation(name);
+    if (name === 'Chat') {
+      openDedicatedChat();
+      return;
+    }
+    setIsDedicatedChatOpen(false);
     if (name === 'Chart Analysis') {
-      document.getElementById('market-chart')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.requestAnimationFrame(() => document.getElementById('market-chart')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     } else if (name === 'Trade Journal') {
       notify('Trade Journal is shown in this sample workspace.');
     } else if (name === 'Market Analysis') {
-      document.getElementById('market-overview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else if (name !== 'Chat') {
+      window.requestAnimationFrame(() => document.getElementById('market-overview')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    } else {
       notify(`${name} is a local demo navigation item.`);
     }
   };
@@ -300,7 +318,7 @@ function App() {
       </header>
 
       <aside className="sidebar" aria-label="Main navigation">
-        <button className="new-chat-button" onClick={() => { setMessages([]); setDraft(''); setActiveNavigation('Chat'); notify('New local demo chat started.'); }} data-testid="button-new-chat">
+        <button className="new-chat-button" onClick={() => { setMessages([]); setDraft(''); openDedicatedChat(); }} data-testid="button-new-chat">
           <Plus size={16} /> <span>New Chat</span>
         </button>
 
@@ -351,12 +369,77 @@ function App() {
         </div>
       </aside>
 
-      <main className="main-area">
+      <main className={`main-area${isDedicatedChatOpen ? ' dedicated-chat-mode' : ''}`}>
+        {isDedicatedChatOpen ? (
+          <section className="dedicated-chat-view" aria-label="V6 AI Chat">
+            <header className="dedicated-chat-header">
+              <div className="dedicated-chat-identity">
+                <div className="analysis-logo">V6</div>
+                <div>
+                  <h1>V6 AI Chat</h1>
+                  <p>Local demo session · Sample responses only</p>
+                </div>
+              </div>
+              <button className="return-dashboard-button" onClick={returnToDashboard} data-testid="button-back-to-dashboard">
+                <ArrowLeft size={14} /><span>Back to Dashboard</span>
+              </button>
+            </header>
+
+            <div className="dedicated-chat-history" aria-live="polite">
+              {messages.length === 0 ? (
+                <div className="dedicated-chat-empty">
+                  <div className="dedicated-chat-empty-icon"><Bot size={22} /></div>
+                  <h2>Start a conversation</h2>
+                  <p>Ask about a setup, market structure, or your trading process. Replies are local sample guidance; no live AI or market service is connected.</p>
+                  <div className="dedicated-chat-quick-prompts">
+                    {welcomePrompts.slice(0, 3).map((prompt) => (
+                      <button key={prompt} onClick={() => focusComposer(prompt)} data-testid={`dedicated-${prompt.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`}>
+                        <Sparkles size={11} />{prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div className={`followup-message ${message.role === 'user' ? 'followup-user' : 'followup-assistant'}`} key={message.id} data-testid={`message-${message.role}-${message.id}`}>
+                    {message.role === 'assistant' && <div className="followup-logo">V6</div>}
+                    <div className="followup-bubble">
+                      <strong>{message.role === 'user' ? 'You' : 'V6 Trader Assistance · local demo'}</strong>
+                      <p>{message.text}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form className="chat-composer dedicated-chat-composer" id="chat-composer" onSubmit={sendMessage}>
+              <button type="button" className="composer-icon" aria-label="Attach file" onClick={() => notify('File attachments are not enabled in this visual demo.')} data-testid="button-dedicated-attach"><Paperclip size={15} /></button>
+              <textarea
+                ref={composerRef}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={submitOnEnter}
+                placeholder="Ask V6 AI Chat about a setup, strategy, or trading process…"
+                aria-label="Ask V6 AI Chat"
+                data-testid="input-dedicated-chat"
+                rows={1}
+              />
+              <button className="send-button" type="submit" aria-label="Send message" data-testid="button-dedicated-send"><Send size={15} /></button>
+            </form>
+            <p className="dedicated-chat-disclaimer">Local demo · Replies are illustrative only · No trades are executed · Not financial advice</p>
+          </section>
+        ) : (
+          <>
         <div className="center-column">
           <section className="welcome-block">
             <div className="welcome-logo">V6</div>
             <div className="welcome-content">
-              <h1>Welcome to V6 Trader Assistance</h1>
+              <div className="welcome-title-row">
+                <h1>Welcome to V6 Trader Assistance</h1>
+                <button className="welcome-chat-open" onClick={openDedicatedChat} aria-label="Open V6 AI Chat" data-testid="button-open-v6-ai-chat">
+                  <MessageCircle size={11} /><span>Open V6 AI Chat</span>
+                </button>
+              </div>
               <p>Your all-in-one AI trading companion. Ask me anything, analyze charts,<br className="desktop-break" /> review your trades, or get help with your strategy.</p>
               <div className="welcome-prompt-list">
                 {welcomePrompts.map((prompt) => (
@@ -587,6 +670,8 @@ function App() {
             </div>
           </section>
         </aside>
+          </>
+        )}
       </main>
 
       {toast && <div className="toast-message" role="status" data-testid="status-toast"><span>{toast}</span><button aria-label="Dismiss notification" onClick={() => setToast('')} data-testid="button-dismiss-toast"><X size={13} /></button></div>}

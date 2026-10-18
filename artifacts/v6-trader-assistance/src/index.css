@@ -94,11 +94,20 @@ select:focus-visible {
 }
 
 .brand-v6 {
+  display: inline-flex;
+  width: 40px;
+  min-width: 40px;
+  height: 34px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 0 2px 1px 0;
   color: #a47aff;
   font-size: 28px;
   font-weight: 900;
-  letter-spacing: -3px;
-  line-height: 1;
+  letter-spacing: -1px;
+  line-height: 1.1;
   background: linear-gradient(145deg, #c29aff 8%, #7540e5 82%);
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -497,6 +506,186 @@ select:focus-visible {
   overflow: hidden;
 }
 
+.main-area.dedicated-chat-mode {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dedicated-chat-view {
+  display: flex;
+  width: 100%;
+  max-width: 980px;
+  height: 100%;
+  min-height: 480px;
+  flex-direction: column;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(46, 60, 91, .72);
+  border-radius: 10px;
+  background: linear-gradient(148deg, rgba(9, 15, 29, .98), rgba(6, 11, 22, .99));
+  box-shadow: 0 7px 24px rgba(0, 0, 0, .15);
+}
+
+.dedicated-chat-header {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--stroke-soft);
+}
+
+.dedicated-chat-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.dedicated-chat-identity h1,
+.dedicated-chat-identity p {
+  margin: 0;
+}
+
+.dedicated-chat-identity h1 {
+  color: #f1f1f8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dedicated-chat-identity p {
+  margin-top: 3px;
+  color: #76839d;
+  font-size: 8px;
+}
+
+.return-dashboard-button {
+  display: inline-flex;
+  min-height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(79, 91, 126, .6);
+  border-radius: 6px;
+  background: rgba(12, 19, 35, .78);
+  color: #c2cbe0;
+  font-size: 8px;
+  transition: border-color .15s, background .15s, color .15s;
+}
+
+.return-dashboard-button:hover {
+  border-color: rgba(150, 111, 245, .7);
+  background: rgba(71, 44, 129, .24);
+  color: #e5d9ff;
+}
+
+.dedicated-chat-history {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #27314a transparent;
+}
+
+.dedicated-chat-empty {
+  width: min(100%, 520px);
+  margin: auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.dedicated-chat-empty-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 13px;
+  place-items: center;
+  border: 1px solid rgba(157, 116, 255, .3);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(124, 74, 232, .31), rgba(37, 21, 77, .82));
+  color: #d4c1ff;
+}
+
+.dedicated-chat-empty h2 {
+  margin: 0 0 7px;
+  color: #e9edf8;
+  font-size: 15px;
+}
+
+.dedicated-chat-empty p {
+  max-width: 420px;
+  margin: 0 auto;
+  color: #96a2bb;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.dedicated-chat-quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 15px;
+}
+
+.dedicated-chat-quick-prompts button {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid rgba(124, 80, 232, .43);
+  border-radius: 99px;
+  background: rgba(50, 30, 102, .13);
+  color: #c0a3ff;
+  font-size: 8px;
+}
+
+.dedicated-chat-quick-prompts button:hover {
+  border-color: rgba(175, 145, 255, .82);
+  background: rgba(100, 63, 198, .24);
+}
+
+.dedicated-chat-view .followup-bubble {
+  max-width: min(82%, 760px);
+  padding: 11px 13px;
+}
+
+.dedicated-chat-view .followup-bubble > strong {
+  font-size: 9px;
+}
+
+.dedicated-chat-view .followup-bubble p {
+  font-size: 10px;
+}
+
+.dedicated-chat-composer {
+  position: static;
+  width: calc(100% - 36px);
+  max-width: 900px;
+  min-height: 48px;
+  align-self: center;
+  margin: 0 auto 9px;
+  padding: 8px 10px;
+}
+
+.dedicated-chat-composer textarea {
+  font-size: 10px;
+}
+
+.dedicated-chat-disclaimer {
+  margin: 0 12px 9px;
+  color: #596580;
+  font-size: 7px;
+  text-align: center;
+}
+
 .center-column,
 .right-column {
   min-width: 0;
@@ -547,12 +736,39 @@ select:focus-visible {
   min-width: 0;
 }
 
+.welcome-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .welcome-content h1 {
   margin: 2px 0 3px;
   color: #f1f1f8;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -.025em;
+}
+
+.welcome-chat-open {
+  display: inline-flex;
+  min-height: 23px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid rgba(124, 80, 232, .4);
+  border-radius: 6px;
+  background: rgba(50, 30, 102, .12);
+  color: #bfa3fa;
+  font-size: 7px;
+  transition: border-color .15s, background .15s;
+}
+
+.welcome-chat-open:hover {
+  border-color: rgba(175, 145, 255, .8);
+  background: rgba(100, 63, 198, .2);
 }
 
 .welcome-content p {
@@ -1924,6 +2140,26 @@ select:focus-visible {
     overflow: visible;
   }
 
+  .main-area.dedicated-chat-mode {
+    display: flex;
+  }
+
+  .dedicated-chat-view {
+    min-height: calc(100dvh - 124px);
+  }
+
+  .dedicated-chat-header {
+    padding-inline: 12px;
+  }
+
+  .dedicated-chat-history {
+    padding: 14px;
+  }
+
+  .dedicated-chat-composer {
+    width: calc(100% - 24px);
+  }
+
   .center-column,
   .right-column {
     overflow: visible;
@@ -2019,6 +2255,14 @@ select:focus-visible {
     letter-spacing: 0;
   }
 
+  .brand-v6 {
+    width: 36px;
+    min-width: 36px;
+    height: 31px;
+    flex-basis: 36px;
+    font-size: 25px;
+  }
+
   .market-ticker {
     display: none;
   }
@@ -2039,6 +2283,22 @@ select:focus-visible {
 
   .welcome-content h1 {
     font-size: 12px;
+  }
+
+  .welcome-title-row {
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .welcome-chat-open {
+    width: 25px;
+    min-width: 25px;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .welcome-chat-open span {
+    display: none;
   }
 
   .welcome-content p {

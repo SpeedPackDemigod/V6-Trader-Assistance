@@ -1,0 +1,1 @@
+- [V6 interface scope](v6-interface-scope.md) — Preserve the approved dashboard; implement one requested feature at a time without external services.
