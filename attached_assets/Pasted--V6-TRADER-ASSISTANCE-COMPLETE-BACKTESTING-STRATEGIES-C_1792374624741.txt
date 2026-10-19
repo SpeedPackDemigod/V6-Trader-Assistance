@@ -1,0 +1,327 @@
+# V6 TRADER ASSISTANCE — COMPLETE BACKTESTING + STRATEGIES & CODE IMPLEMENTATION
+
+You are continuing development of my EXISTING V6 TRADER ASSISTANCE application. This is an ongoing project, not a new app.
+
+## EXISTING PROJECT
+
+The application uses React, TypeScript, and Vite, with an existing backend built with Express 5. The project already has working Dashboard, AI Chat, Market Analysis, Chart Analysis, Education/Trading Academy, Trade Journal, Settings, and News & Research navigation.
+
+News & Research currently opens the Forex Factory Economic Calendar in a new browser tab.
+
+My goal is to turn V6 TRADER ASSISTANCE into a comprehensive AI-powered trading assistance platform, with real market data and useful trading tools rather than fake demonstrations.
+
+## CRITICAL RULE: INSPECT BEFORE EDITING
+
+Before making any changes:
+
+1. Inspect the complete project structure.
+2. Locate the existing sidebar navigation and determine how pages are rendered.
+3. Check whether Backtesting or Strategies & Code pages already exist.
+4. Inspect the existing styling, shared components, state management, backend routes, database, and dependencies.
+5. Identify which functionality already exists and reuse it.
+6. Provide a short implementation plan, then proceed with the implementation.
+
+Do not create duplicate pages, replace the application, or rewrite unrelated components.
+
+Preserve all working pages and existing functionality.
+
+# PART 1 — BACKTESTING WORKSPACE
+
+Build a complete Backtesting page integrated into the existing sidebar.
+
+The page should look polished, professional, modern, and consistent with the existing V6 TRADER ASSISTANCE design.
+
+## A. Market selection
+
+Prepare support for these futures instruments:
+
+- NQ — E-mini Nasdaq-100 futures
+- MNQ — Micro E-mini Nasdaq-100 futures
+- YM — E-mini Dow futures
+- MYM — Micro E-mini Dow futures
+
+Design the market selector so more instruments and asset classes can be added later.
+
+Do not assume every data provider supports every instrument.
+
+## B. Timeframe selector
+
+Implement all eight timeframes:
+
+- 1 minute
+- 5 minutes
+- 15 minutes
+- 30 minutes
+- 1 hour
+- 4 hours
+- 1 day
+- 1 week
+
+The selected timeframe must update the interface and be passed into the backtesting logic.
+
+Support multi-timeframe analysis as part of the architecture. For example, a strategy could identify support on the 1-hour chart and evaluate entries on the 5-minute chart.
+
+Avoid look-ahead bias: strategies must not access higher-timeframe candle information before that candle would have been available.
+
+## C. Historical market-data infrastructure
+
+This is one of the most important parts of the project.
+
+Design the historical-data system for long-term use rather than temporary sample data.
+
+Requirements:
+
+1. Integrate a legitimate historical market-data provider when a suitable provider and credentials are available.
+2. Research the provider's actual API, available history, instrument coverage, pricing, rate limits, and licensing before implementing it.
+3. Store historical candles persistently using the existing database infrastructure where appropriate.
+4. Support OHLCV candle records: timestamp, open, high, low, close, and volume when available.
+5. Support backfilling historical data over a requested date range.
+6. Support automatic incremental updates so new candles are fetched without manually replacing historical files.
+7. Avoid duplicate candles and handle corrections or missing data appropriately.
+8. Track the last successful update, data coverage, and data-source status.
+9. Provide loading, error, and unavailable-data states.
+10. Include configurable date-range selection for backtests.
+11. Design a provider abstraction so we can change or add data providers without rewriting the backtesting engine.
+12. Support aggregation from sufficiently granular source candles into higher timeframes when appropriate.
+13. Handle exchange time zones, daylight-saving transitions, trading sessions, holidays, and futures contract expiration/rollover correctly.
+14. Never silently treat missing candles as real market data.
+15. Make it possible to add tick-level data in the future without redesigning the entire application.
+
+Do not download enormous datasets blindly. Implement pagination, rate limiting, and incremental retrieval appropriate to the chosen provider.
+
+Do not scrape restricted data or violate a provider's licensing terms.
+
+If API credentials are unavailable, build the provider interface, data models, storage layer, and setup instructions, but clearly mark the live-data connection as not configured. Do not invent API responses or claim data is connected.
+
+## D. Backtesting engine
+
+Build the foundation for a genuine historical strategy backtester.
+
+Include:
+
+- Strategy selection
+- Instrument selection
+- Timeframe selection
+- Historical date-range selection
+- Starting hypothetical balance
+- Position sizing
+- Risk-per-trade settings
+- Stop-loss and take-profit settings
+- Configurable entry and exit rules
+- Trade-by-trade historical results
+- Entry and exit timestamps and prices
+- Win rate
+- Total hypothetical profit or loss
+- Average win and average loss
+- Profit factor
+- Maximum drawdown
+- Number of trades
+- Risk/reward statistics
+- Equity curve
+- Trade history table
+
+Use actual historical data when available. Until then, clearly identify the backtester as awaiting data and allow safe development testing without representing simulated results as real historical performance.
+
+Account for trading fees and configurable slippage when the required information is available.
+
+Handle ambiguous intrabar stop-loss and take-profit ordering conservatively when the available candle resolution cannot determine which occurred first. Do not assume favorable fills.
+
+Keep backtest results separate from actual brokerage account balances and real trading P&L.
+
+## E. Historical chart replay
+
+Design the system to support replaying historical price action.
+
+The eventual experience should allow users to:
+
+- Navigate through historical candles.
+- Play, pause, and step through price action.
+- Change playback speed.
+- Review entries and exits.
+- Display support and resistance levels.
+- See trade results as the historical simulation progresses.
+
+If this requires an additional charting library, first inspect the existing dependencies and chart implementation. Reuse existing tools where possible.
+
+Do not install unnecessary dependencies.
+
+# PART 2 — STRATEGIES & CODE WORKSPACE
+
+Build a separate Strategies & Code page integrated into the existing sidebar.
+
+This should become a genuine strategy-development workspace, not merely a static text editor.
+
+## A. Strategy library
+
+Users should be able to:
+
+- Create a strategy.
+- Name and describe it.
+- Edit and delete strategies.
+- Organize strategies into categories.
+- Add tags.
+- Save entry rules.
+- Save exit rules.
+- Record stop-loss and take-profit rules.
+- Define risk-management rules.
+- Document supported instruments and timeframes.
+- Record setup conditions and invalidation conditions.
+- Save examples and observations.
+- Search and filter strategies.
+- Duplicate a strategy to test variations.
+- Link a saved strategy to the Backtesting workspace.
+
+Include a useful starter template for a support-and-resistance strategy.
+
+The template should be editable and must not automatically place trades.
+
+Persist strategies using the existing database or persistence architecture where appropriate. Do not rely exclusively on temporary component state or localStorage for important long-term records if a database is already available.
+
+## B. Code editor
+
+Create a dedicated code workspace suitable for trading-related code, including Pine Script.
+
+Include:
+
+- A code editor with syntax highlighting if compatible with existing dependencies.
+- Create, edit, rename, and delete saved scripts.
+- Save and reload code.
+- Basic formatting and readable code layout.
+- Clear language identification.
+- Separate strategy notes from source code.
+- Copy code functionality.
+- Import/export of source files where practical.
+- Basic validation or syntax checking when supported.
+- Helpful error messages.
+- A safe, clearly labeled area for future code execution or testing integrations.
+
+Inspect existing dependencies before selecting an editor. Do not install a large editor framework unless it is genuinely necessary.
+
+Do not claim to compile, execute, or validate Pine Script through TradingView unless an actual supported integration exists.
+
+Do not execute arbitrary user-submitted code on the backend.
+
+## C. Strategy versions and testing
+
+Prepare the architecture for:
+
+- Saving strategy revisions.
+- Comparing different versions of a strategy.
+- Linking strategy versions to backtest runs.
+- Recording backtest parameters and results.
+- Comparing performance across instruments and timeframes.
+- Keeping a history of previous test results.
+
+Where practical, implement a basic version history without introducing unnecessary complexity.
+
+# PART 3 — LIVE MARKET-DATA CAPABILITIES
+
+I want V6 TRADER ASSISTANCE to eventually use actual market data instead of permanently relying on mock values.
+
+Design the Backtesting and Strategies & Code features to work with the wider application's future live-data architecture.
+
+Requirements:
+
+1. Create a clear boundary between historical data and live market data.
+2. Reuse a shared data-provider abstraction where appropriate.
+3. Prepare for real-time or delayed price updates, depending on provider permissions and subscription level.
+4. Display the provider's actual connection status and data timestamp.
+5. Handle disconnections, stale data, rate limits, and API errors.
+6. Allow historical and live data to be reconciled without duplicating candles.
+7. Prepare for a future AI assistant that can reference market data and saved strategies.
+8. Keep all private provider credentials on the backend.
+
+Do not claim data is real-time if it is delayed.
+
+Do not hardcode fake prices and label them live.
+
+Do not implement unsupported integrations based on guessed endpoints.
+
+# PART 4 — FUTURE BROKER INTEGRATION
+
+My eventual goal is to explore integration with my Tradovate/Lucid trading setup.
+
+Design the architecture so a future supported broker connection can provide, subject to actual API and account permissions:
+
+- Account information
+- Positions
+- Executed orders and fills
+- Trade history
+- Brokerage-derived P&L
+- Automatic trade-journal imports
+
+For the current implementation, prioritize read-only capabilities and paper-testing workflows.
+
+Do not assume Lucid or every prop-firm account permits every Tradovate API feature. Verify compatibility before implementing account-specific functionality.
+
+Do not add real order placement, modification, cancellation, or automatic live trading as part of this assignment.
+
+Do not request broker passwords or expose credentials in frontend code.
+
+# PART 5 — BACKEND, SECURITY, AND DATABASE
+
+Use the existing Express backend and database architecture.
+
+Before adding new routes or database tables:
+
+1. Inspect the current schema and migration process.
+2. Reuse existing conventions.
+3. Keep routes, data models, validation, and provider logic modular.
+4. Validate inputs on the server.
+5. Store API keys in Replit Secrets or the project's appropriate server-side environment configuration.
+6. Never put private API keys in Vite client-side environment variables or frontend source.
+7. Avoid logging credentials.
+8. Implement appropriate error handling and rate limiting.
+9. Avoid adding dependencies that duplicate existing functionality.
+10. Keep the application build and typecheck working.
+
+# PART 6 — DESIGN AND USER EXPERIENCE
+
+Both pages must match the existing V6 TRADER ASSISTANCE visual design.
+
+Use the existing colors, typography, spacing, cards, buttons, navigation, and interaction patterns.
+
+The pages should be usable on a 1920 × 1080 laptop at 100% browser zoom.
+
+Avoid unnecessarily small text, oversized empty areas, horizontal overflow, and excessive scrolling.
+
+Use clear loading states, empty states, disabled states, and error messages.
+
+Every visible interactive control must either work or be explicitly labeled as not yet available. Do not add decorative buttons that pretend to perform actions.
+
+# PART 7 — IMPLEMENTATION AND TESTING
+
+Implement both pages as one coordinated feature, but work in logical stages:
+
+Stage 1: Inspect the project and implement the Backtesting and Strategies & Code interfaces.
+
+Stage 2: Add the eight-timeframe selection, instrument selection, data models, and provider interfaces.
+
+Stage 3: Implement persistent storage and the historical-data ingestion/update pipeline using a verified provider when configured.
+
+Stage 4: Implement the actual backtesting engine and results display.
+
+Stage 5: Implement the strategy library, code workspace, and persistence.
+
+Stage 6: Connect saved strategies to backtests and prepare the shared live-data architecture.
+
+Do not stop after creating static mockup screens. Implement the working features that can be completed with the current infrastructure and clearly identify any parts that require external API credentials, paid subscriptions, or additional permissions.
+
+Test navigation, persistence, input validation, timeframe selection, and backtesting calculations.
+
+Run the available typecheck and build commands and fix errors introduced by your changes.
+
+At completion, report:
+
+- Every file created or modified.
+- Features that genuinely work.
+- Features that require API credentials or external subscriptions.
+- Any remaining limitations.
+- Tests and build checks performed.
+- Exact setup steps needed to enable real historical or live market data.
+
+## FINAL PRIORITY
+
+Build a maintainable foundation for a serious trading assistance application.
+
+Preserve the existing project. Do not replace working pages. Do not fabricate market data or claim unsupported integrations are complete. Prefer reusable architecture and functional features over superficial visual additions.
