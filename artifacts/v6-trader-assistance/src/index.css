@@ -2969,3 +2969,9 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+@media (min-width: 1440px) {
+  :root {
+    font-size-adjust: 0.8;
+  }
+}
