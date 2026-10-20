@@ -1293,7 +1293,6 @@ function App() {
           <section className="dedicated-chat-view" aria-label="V6 AI Chat">
             <header className="dedicated-chat-header">
               <div className="dedicated-chat-identity">
-                <div className="analysis-logo">V6</div>
                 <div>
                   <h1>V6 AI Chat</h1>
                   <p>Local demo session · Sample responses only</p>
@@ -1341,9 +1340,6 @@ function App() {
                     key={message.id}
                     data-testid={`message-${message.role}-${message.id}`}
                   >
-                    {message.role === "assistant" && (
-                      <div className="followup-logo">V6</div>
-                    )}
                     <div className="followup-bubble">
                       <strong>
                         {message.role === "user"
@@ -1508,7 +1504,6 @@ function App() {
                   aria-label="V6 sample market analysis"
                 >
                   <div className="analysis-brand">
-                    <div className="analysis-logo">V6</div>
                     <div>
                       <strong>V6 Trader Assistance</strong>
                       <span>DEMO ANALYSIS · NOT LIVE MARKET DATA</span>
@@ -1667,9 +1662,6 @@ function App() {
                     key={message.id}
                     data-testid={`message-${message.role}-${message.id}`}
                   >
-                    {message.role === "assistant" && (
-                      <div className="followup-logo">V6</div>
-                    )}
                     <div className="followup-bubble">
                       <strong>
                         {message.role === "user"

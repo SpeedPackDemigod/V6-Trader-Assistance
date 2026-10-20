@@ -946,7 +946,7 @@ select:focus-visible {
   font-size: 15px;
 }
 
-.analysis-brand > div:nth-child(2) {
+.analysis-brand > div:first-child {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -2977,6 +2977,7 @@ select:focus-visible {
 
   .brand-v6 {
     font-size: 24px;
+    font-size-adjust: none;
   }
 
   .sidebar-watermark {
