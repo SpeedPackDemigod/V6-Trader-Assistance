@@ -943,10 +943,11 @@ select:focus-visible {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  font-size: 15px;
+  font-size: 12px;
+  letter-spacing: -.5px;
 }
 
-.analysis-brand > div:first-child {
+.analysis-brand > div:nth-child(2) {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -2989,7 +2990,8 @@ select:focus-visible {
   }
 
   .analysis-logo {
-    font-size: 13px;
+    font-size: 12px;
+    font-size-adjust: none;
   }
 
   .followup-logo {

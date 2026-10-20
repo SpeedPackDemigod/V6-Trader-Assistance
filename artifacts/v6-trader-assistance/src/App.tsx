@@ -1504,6 +1504,7 @@ function App() {
                   aria-label="V6 sample market analysis"
                 >
                   <div className="analysis-brand">
+                    <div className="analysis-logo">V6</div>
                     <div>
                       <strong>V6 Trader Assistance</strong>
                       <span>DEMO ANALYSIS · NOT LIVE MARKET DATA</span>
