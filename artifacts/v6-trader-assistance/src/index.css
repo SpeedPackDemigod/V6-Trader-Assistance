@@ -2974,4 +2974,24 @@ select:focus-visible {
   :root {
     font-size-adjust: 0.76;
   }
+
+  .brand-v6 {
+    font-size: 24px;
+  }
+
+  .sidebar-watermark {
+    font-size: 40px;
+  }
+
+  .welcome-logo {
+    font-size: 18px;
+  }
+
+  .analysis-logo {
+    font-size: 13px;
+  }
+
+  .followup-logo {
+    font-size: 9px;
+  }
 }
