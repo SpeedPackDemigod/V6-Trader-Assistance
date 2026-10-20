@@ -947,7 +947,7 @@ select:focus-visible {
   letter-spacing: -.5px;
 }
 
-.analysis-brand > div:nth-child(2) {
+.analysis-brand > div:first-child {
   display: flex;
   flex: 1;
   flex-direction: column;
