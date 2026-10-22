@@ -98,7 +98,7 @@ const features = [
 function BrandMark() {
   return (
     <span className="v6-brand-mark" aria-hidden="true">
-      V<span>6</span>
+      <span>V<span>6</span></span>
     </span>
   );
 }
