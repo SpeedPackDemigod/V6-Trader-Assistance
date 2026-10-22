@@ -324,7 +324,44 @@ export function AboutUsPage({ onBack }: { onBack: () => void }) {
       >
         <ArrowLeft size={18} aria-hidden="true" />
       </button>
-      <h1>About Us</h1>
+      <article className="v6-about-content">
+        <h1>Who We Are</h1>
+        <p className="v6-about-lead">
+          <strong>Behind every vision is a team willing to bring it to life.</strong>
+        </p>
+        <div className="v6-about-copy">
+          <p>
+            V6 TRADER ASSISTANCE was founded with a vision to create a smarter,
+            more organized trading experience. As Founder and CEO, I lead the
+            development and direction of V6, working to bring market analysis,
+            strategy development, trading education, and performance tracking
+            together in one platform.
+          </p>
+          <p>
+            Our goal is to build more than just another trading tool. We want to
+            create a space where traders can develop their understanding of the
+            markets, refine their approach, and build better trading habits
+            through education, analysis, and consistency.
+          </p>
+          <p>
+            Behind the vision is a growing circle of supporters helping spread
+            the word and introduce V6 to new audiences. Their support and
+            commitment to promoting the brand play an important role in helping
+            us reach more people and grow our community.
+          </p>
+          <p>
+            We&apos;re building V6 one step at a time, with a focus on continuous
+            improvement, innovation, and a long-term vision for the future of
+            trading technology.
+          </p>
+        </div>
+        <p className="v6-about-closing">
+          <strong>One vision. One mission. A better way to approach the markets.</strong>
+        </p>
+        <p className="v6-about-signoff">
+          <em>V6 TRADER ASSISTANCE — Better Decisions. Bigger Opportunities.</em>
+        </p>
+      </article>
     </main>
   );
 }
