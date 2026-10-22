@@ -2,13 +2,20 @@ import EducationPage from "./pages/education";
 import SettingsPage from "./pages/settings";
 import BacktestingPage from "./pages/backtesting";
 import StrategiesPage from "./pages/strategies";
+import AllWorkspacesPage from "./pages/all-workspaces";
 import { LandingPage, AboutUsPage } from "./pages/public-pages";
 import {
   persistStrategies,
   readStoredStrategies,
   type SavedStrategy,
 } from "./lib/strategies";
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   Activity,
   ArrowLeft,
@@ -26,6 +33,7 @@ import {
   Code2,
   GraduationCap,
   Layers3,
+  LogOut,
   MessageCircle,
   MoreHorizontal,
   Newspaper,
@@ -37,6 +45,7 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  UserRound,
   Wallet,
   X,
 } from "lucide-react";
@@ -213,6 +222,14 @@ const workspaces = [
   { name: "Strategy Development", icon: Code2 },
   { name: "Learning Hub", icon: GraduationCap },
   { name: "All Workspaces", icon: Layers3 },
+];
+
+const allWorkspaceItems = [
+  { name: "Dashboard", icon: <Activity size={15} strokeWidth={1.8} /> },
+  ...primaryNavigation.map(({ name, icon: Icon }) => ({
+    name,
+    icon: <Icon size={15} strokeWidth={1.8} />,
+  })),
 ];
 
 const quickActions = [
@@ -584,6 +601,9 @@ function App() {
   const [isStrategiesOpen, setIsStrategiesOpen] = useState(false);
   const [isEducationOpen, setIsEducationOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAllWorkspacesOpen, setIsAllWorkspacesOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [strategyStorageRead] = useState(readStoredStrategies);
   const [strategies, setStrategies] = useState<SavedStrategy[]>(
     strategyStorageRead.strategies,
@@ -618,6 +638,31 @@ function App() {
   const [isProMode, setIsProMode] = useState(false);
   const [toast, setToast] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+        profileButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isProfileMenuOpen]);
 
   const notify = (message: string) => {
     setToast(message);
@@ -632,19 +677,12 @@ function App() {
       ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
-  const openDedicatedChat = () => {
-    setActiveNavigation("Chat");
-    setIsDedicatedChatOpen(true);
-    setIsTradeJournalOpen(false);
-    setIsChartAnalysisOpen(false);
-    setIsBacktestingOpen(false);
-    setIsStrategiesOpen(false);
-    setIsEducationOpen(false);
-    setIsSettingsOpen(false);
-    window.requestAnimationFrame(() => composerRef.current?.focus());
+  const closeProfileMenu = (restoreFocus = false) => {
+    setIsProfileMenuOpen(false);
+    if (restoreFocus) profileButtonRef.current?.focus();
   };
 
-  const returnToDashboard = (workspace = "Futures Trading") => {
+  const closeWorkspaceViews = () => {
     setIsDedicatedChatOpen(false);
     setIsTradeJournalOpen(false);
     setIsChartAnalysisOpen(false);
@@ -652,12 +690,28 @@ function App() {
     setIsStrategiesOpen(false);
     setIsEducationOpen(false);
     setIsSettingsOpen(false);
+    setIsAllWorkspacesOpen(false);
+    setIsAccountOpen(false);
     setIsJournalEntryFormOpen(false);
+  };
+
+  const openDedicatedChat = () => {
+    closeWorkspaceViews();
+    setActiveNavigation("Chat");
+    setIsDedicatedChatOpen(true);
+    window.requestAnimationFrame(() => composerRef.current?.focus());
+  };
+
+  const returnToDashboard = (workspace = "Futures Trading") => {
+    closeWorkspaceViews();
     setActiveNavigation("Chat");
     setSelectedWorkspace(workspace);
   };
 
   const handleNavigation = (name: string) => {
+    closeProfileMenu();
+    setIsAllWorkspacesOpen(false);
+    setIsAccountOpen(false);
     setActiveNavigation(name);
     const workspaceByNavigation: Record<string, string> = {
       Chat: "Futures Trading",
@@ -714,8 +768,14 @@ function App() {
   };
 
   const handleWorkspaceNavigation = (name: string) => {
-    if (name === "Futures Trading" || name === "All Workspaces") {
+    if (name === "Futures Trading") {
       returnToDashboard(name);
+      return;
+    }
+    if (name === "All Workspaces") {
+      closeWorkspaceViews();
+      setSelectedWorkspace(name);
+      setIsAllWorkspacesOpen(true);
       return;
     }
 
@@ -732,6 +792,18 @@ function App() {
 
     handleNavigation(destination);
     setSelectedWorkspace(name);
+  };
+
+  const openAccountPlaceholder = () => {
+    closeProfileMenu(true);
+    returnToDashboard("Futures Trading");
+    setIsAccountOpen(true);
+  };
+
+  const handleLogout = () => {
+    closeProfileMenu();
+    returnToDashboard("Futures Trading");
+    setPublicPage("landing");
   };
 
   const updateStrategies = (nextStrategies: SavedStrategy[]) => {
@@ -793,7 +865,7 @@ function App() {
     setDraft("");
   };
 
-  const submitOnEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+  const submitOnEnter = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       const form = event.currentTarget.form;
@@ -922,14 +994,64 @@ function App() {
             <Bell size={16} />
             <span className="notification-dot" />
           </button>
-          <button
-            className="profile-avatar"
-            aria-label="Demo profile"
-            onClick={() => notify("Demo profile settings are not connected.")}
-            data-testid="button-profile"
-          >
-            CM
-          </button>
+          <div className="profile-menu-container" ref={profileMenuRef}>
+            <button
+              ref={profileButtonRef}
+              className="profile-avatar"
+              aria-label="Open profile menu"
+              aria-haspopup="menu"
+              aria-expanded={isProfileMenuOpen}
+              aria-controls="profile-actions-menu"
+              onClick={() => setIsProfileMenuOpen((open) => !open)}
+              data-testid="button-profile"
+            >
+              <UserRound size={14} aria-hidden="true" />
+            </button>
+            <div
+              id="profile-actions-menu"
+              className="profile-menu"
+              role="menu"
+              aria-label="Profile and account actions"
+              hidden={!isProfileMenuOpen}
+              data-testid="profile-menu"
+            >
+              <div className="profile-menu-heading">PROFILE</div>
+              <button
+                type="button"
+                className="profile-menu-item"
+                role="menuitem"
+                onClick={openAccountPlaceholder}
+                data-testid="profile-menu-account"
+              >
+                <UserRound size={14} />
+                <span>Account</span>
+              </button>
+              <button
+                type="button"
+                className="profile-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  closeProfileMenu(true);
+                  handleNavigation("Settings");
+                }}
+                data-testid="profile-menu-settings"
+              >
+                <Settings size={14} />
+                <span>Settings</span>
+              </button>
+              <div className="profile-menu-divider" />
+              <button
+                type="button"
+                className="profile-menu-item"
+                role="menuitem"
+                onClick={handleLogout}
+                data-testid="profile-menu-logout"
+              >
+                <LogOut size={14} />
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1017,7 +1139,7 @@ function App() {
       </aside>
 
       <main
-        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
+        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen || isAllWorkspacesOpen || isAccountOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}${isAllWorkspacesOpen ? " all-workspaces-mode" : ""}${isAccountOpen ? " account-mode" : ""}`}
       >
         {isTradeJournalOpen ? (
           <section className="journal-workspace" aria-label="Trade Journal">
@@ -1033,7 +1155,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-journal-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1403,6 +1525,52 @@ function App() {
               </section>
             </div>
           </section>
+        ) : isAllWorkspacesOpen ? (
+          <AllWorkspacesPage
+            items={allWorkspaceItems}
+            onOpen={(name) => {
+              if (name === "Dashboard") {
+                returnToDashboard("Futures Trading");
+                return;
+              }
+              handleNavigation(name);
+            }}
+            onBack={() => returnToDashboard("Futures Trading")}
+          />
+        ) : isAccountOpen ? (
+          <section
+            className="profile-account-view"
+            aria-label="Account"
+            data-testid="profile-account-view"
+          >
+            <header className="dedicated-chat-header">
+              <div className="dedicated-chat-identity">
+                <div className="analysis-logo">
+                  <UserRound size={15} />
+                </div>
+                <div>
+                  <h1>Account</h1>
+                  <p>Account information</p>
+                </div>
+              </div>
+              <button
+                className="return-dashboard-button"
+                onClick={() => returnToDashboard("Futures Trading")}
+                data-testid="button-account-back-to-dashboard"
+              >
+                <ArrowLeft size={14} />
+                <span>Back to Dashboard</span>
+              </button>
+            </header>
+            <div className="profile-account-panel">
+              <UserRound size={20} aria-hidden="true" />
+              <h2>Account information isn’t connected</h2>
+              <p>
+                Account details aren’t available in this demo, so no personal
+                profile information is shown here.
+              </p>
+            </div>
+          </section>
         ) : isDedicatedChatOpen ? (
           <section className="dedicated-chat-view" aria-label="V6 AI Chat">
             <header className="dedicated-chat-header">
@@ -1414,7 +1582,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1523,7 +1691,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-chart-analysis-back-to-dashboard"
               >
                 <ArrowLeft size={14} />

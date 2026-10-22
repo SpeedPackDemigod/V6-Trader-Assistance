@@ -14,6 +14,7 @@ type AllWorkspacesPageProps = {
 };
 
 const descriptions: Record<string, string> = {
+  Dashboard: "Return to the main futures trading dashboard.",
   Chat: "Open the V6 chat workspace and continue a conversation.",
   "Market Analysis": "Jump to the market overview on the dashboard.",
   "Chart Analysis": "Open the interactive chart and analysis tools.",
@@ -46,7 +47,10 @@ export default function AllWorkspacesPage({
           </div>
           <div className="all-workspaces-heading-copy">
             <h1 id="all-workspaces-title">All Workspaces</h1>
-            <p>Open any of the nine main sections from one page.</p>
+            <p>
+              Open the dashboard and {items.length - 1} existing sections from
+              one page.
+            </p>
           </div>
         </div>
         <button
