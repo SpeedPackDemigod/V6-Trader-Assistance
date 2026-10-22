@@ -2,6 +2,7 @@ import EducationPage from "./pages/education";
 import SettingsPage from "./pages/settings";
 import BacktestingPage from "./pages/backtesting";
 import StrategiesPage from "./pages/strategies";
+import AllWorkspacesPage from "./pages/all-workspaces";
 import {
   persistStrategies,
   readStoredStrategies,
@@ -580,6 +581,7 @@ function App() {
   const [isStrategiesOpen, setIsStrategiesOpen] = useState(false);
   const [isEducationOpen, setIsEducationOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAllWorkspacesOpen, setIsAllWorkspacesOpen] = useState(false);
   const [strategyStorageRead] = useState(readStoredStrategies);
   const [strategies, setStrategies] = useState<SavedStrategy[]>(
     strategyStorageRead.strategies,
@@ -637,6 +639,7 @@ function App() {
     setIsStrategiesOpen(false);
     setIsEducationOpen(false);
     setIsSettingsOpen(false);
+    setIsAllWorkspacesOpen(false);
     window.requestAnimationFrame(() => composerRef.current?.focus());
   };
 
@@ -648,9 +651,24 @@ function App() {
     setIsStrategiesOpen(false);
     setIsEducationOpen(false);
     setIsSettingsOpen(false);
+    setIsAllWorkspacesOpen(false);
     setIsJournalEntryFormOpen(false);
     setActiveNavigation("Chat");
     setSelectedWorkspace(workspace);
+  };
+
+  const openAllWorkspaces = () => {
+    setIsDedicatedChatOpen(false);
+    setIsTradeJournalOpen(false);
+    setIsChartAnalysisOpen(false);
+    setIsBacktestingOpen(false);
+    setIsStrategiesOpen(false);
+    setIsEducationOpen(false);
+    setIsSettingsOpen(false);
+    setIsAllWorkspacesOpen(true);
+    setIsJournalEntryFormOpen(false);
+    setActiveNavigation("");
+    setSelectedWorkspace("All Workspaces");
   };
 
   const handleNavigation = (name: string) => {
@@ -676,6 +694,7 @@ function App() {
       );
       return;
     }
+    setIsAllWorkspacesOpen(false);
     setIsEducationOpen(name === "Education");
     setIsSettingsOpen(name === "Settings");
     setIsBacktestingOpen(name === "Backtesting");
@@ -710,7 +729,11 @@ function App() {
   };
 
   const handleWorkspaceNavigation = (name: string) => {
-    if (name === "Futures Trading" || name === "All Workspaces") {
+    if (name === "All Workspaces") {
+      openAllWorkspaces();
+      return;
+    }
+    if (name === "Futures Trading") {
       returnToDashboard(name);
       return;
     }
@@ -975,9 +998,18 @@ function App() {
       </aside>
 
       <main
-        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
+        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen || isAllWorkspacesOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
       >
-        {isTradeJournalOpen ? (
+        {isAllWorkspacesOpen ? (
+          <AllWorkspacesPage
+            items={primaryNavigation.map(({ name, icon: Icon }) => ({
+              name,
+              icon: <Icon size={16} strokeWidth={1.8} />,
+            }))}
+            onOpen={handleNavigation}
+            onBack={() => returnToDashboard()}
+          />
+        ) : isTradeJournalOpen ? (
           <section className="journal-workspace" aria-label="Trade Journal">
             <header className="dedicated-chat-header">
               <div className="dedicated-chat-identity">
@@ -991,7 +1023,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-journal-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1372,7 +1404,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1481,7 +1513,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-chart-analysis-back-to-dashboard"
               >
                 <ArrowLeft size={14} />

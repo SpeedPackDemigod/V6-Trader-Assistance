@@ -7,8 +7,8 @@ Keep the existing V6 Trader Assistance dashboard design as-is: do not redesign t
 
 Use Inter throughout the interface. Keep the top-left V6 mark and the sidebar watermark beneath the slogan. Remove the welcome-panel and analysis-card V6 badges, while retaining non-V6 icon badges. Preserve the remaining marks' appearance. Change only what the user explicitly requests; avoid unrelated edits.
 
-Workspace shortcuts and Quick Actions should route to existing pages or the existing dashboard, never to fake/placeholder destinations. Backtest market data and results must remain clearly labeled synthetic/demo; do not present them as live or historical, or add a data provider without the user's direct request.
+Workspace shortcuts and Quick Actions should route to real destinations, never fake/placeholder pages. “All Workspaces” is a dedicated directory containing the nine existing primary navigation items; its Open buttons use their existing destinations. Backtest market data and results must remain clearly labeled synthetic/demo; do not present them as live or historical, or add a data provider without the user's direct request.
 
-**Why:** The user explicitly set these boundaries while asking for functional features and repairing navigation.
+**Why:** The user explicitly asked for the All Workspaces directory while requiring existing destinations and clearly labeled synthetic data.
 
-**How to apply:** Implement only the feature requested in the current step, keep the accepted visual design intact, map navigation to existing views, and use clearly labeled local/synthetic behavior until the user asks to connect services.
+**How to apply:** Keep the directory in sync with the nine primary navigation items and route each Open action through the current navigation handler. Preserve the accepted visual design and use local/synthetic behavior until the user asks to connect services.
