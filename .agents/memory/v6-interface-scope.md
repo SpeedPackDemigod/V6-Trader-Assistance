@@ -12,3 +12,11 @@ Workspace shortcuts and Quick Actions should route to real destinations, never f
 **Why:** The user explicitly asked for the All Workspaces directory while requiring existing destinations and clearly labeled synthetic data.
 
 **How to apply:** Keep the directory in sync with the nine primary navigation items and route each Open action through the current navigation handler. Preserve the accepted visual design and use local/synthetic behavior until the user asks to connect services.
+
+## Account flow staging
+
+Keep public Sign Up and Log In entry points clearly non-functional until real authentication is added. The intended later flow is public landing → authentication → dashboard; account profile/settings and logout should eventually return users to the public landing page.
+
+**Why:** The user explicitly deferred the actual account system and asked not to imply that registration or login already works.
+
+**How to apply:** Do not add fake or local authentication. When implementing the later account step, use a real auth provider and connect it to the existing dashboard, profile/settings, and landing-page flow.

@@ -1,6 +1,7 @@
 import {
   Activity,
   ArrowDown,
+  ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   BookOpen,
@@ -24,6 +25,7 @@ import "./public-pages.css";
 type LandingPageProps = {
   onGetStarted: () => void;
   onAboutUs: () => void;
+  onAccountAction: (action: "Sign Up" | "Log In") => void;
   onOpenFeature: (section: string) => void;
 };
 
@@ -159,7 +161,12 @@ function MarketSketch() {
   );
 }
 
-export function LandingPage({ onGetStarted, onAboutUs, onOpenFeature }: LandingPageProps) {
+export function LandingPage({
+  onGetStarted,
+  onAboutUs,
+  onAccountAction,
+  onOpenFeature,
+}: LandingPageProps) {
   const scrollToFeatures = () => document.getElementById("v6-features")?.scrollIntoView({ behavior: "smooth" });
   return (
     <main className="v6-public">
@@ -187,6 +194,26 @@ export function LandingPage({ onGetStarted, onAboutUs, onOpenFeature }: LandingP
             <button className="button-primary" type="button" onClick={onGetStarted}>Get Started <ArrowRight size={16} /></button>
             <button className="button-secondary" type="button" onClick={scrollToFeatures}><span className="play-icon"><Play size={10} fill="currentColor" /></span> Explore Features</button>
             <button className="button-text" type="button" onClick={onAboutUs}>About Us <ChevronRight size={15} /></button>
+            <div
+              className="hero-account-actions"
+              role="group"
+              aria-label="Account access"
+            >
+              <button
+                className="public-account-link public-account-login"
+                type="button"
+                onClick={() => onAccountAction("Log In")}
+              >
+                Log In
+              </button>
+              <button
+                className="public-account-link public-account-signup"
+                type="button"
+                onClick={() => onAccountAction("Sign Up")}
+              >
+                Sign Up
+              </button>
+            </div>
           </div>
           <div className="hero-proof">
             <span><ShieldCheck size={14} /> Built for deliberate study</span>
@@ -286,9 +313,17 @@ export function LandingPage({ onGetStarted, onAboutUs, onOpenFeature }: LandingP
   );
 }
 
-export function AboutUsPage() {
+export function AboutUsPage({ onBack }: { onBack: () => void }) {
   return (
     <main className="v6-about-page">
+      <button
+        className="about-back-button"
+        type="button"
+        onClick={onBack}
+        aria-label="Back to the landing page"
+      >
+        <ArrowLeft size={18} aria-hidden="true" />
+      </button>
       <h1>About Us</h1>
     </main>
   );

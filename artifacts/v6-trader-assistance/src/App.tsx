@@ -2,7 +2,7 @@ import EducationPage from "./pages/education";
 import SettingsPage from "./pages/settings";
 import BacktestingPage from "./pages/backtesting";
 import StrategiesPage from "./pages/strategies";
-import AllWorkspacesPage from "./pages/all-workspaces";
+import { LandingPage, AboutUsPage } from "./pages/public-pages";
 import {
   persistStrategies,
   readStoredStrategies,
@@ -573,6 +573,9 @@ function ChartWorkspace({
 }
 
 function App() {
+  const [publicPage, setPublicPage] = useState<"landing" | "about" | "app">(
+    "landing",
+  );
   const [activeNavigation, setActiveNavigation] = useState("Chat");
   const [isDedicatedChatOpen, setIsDedicatedChatOpen] = useState(false);
   const [isTradeJournalOpen, setIsTradeJournalOpen] = useState(false);
@@ -581,7 +584,6 @@ function App() {
   const [isStrategiesOpen, setIsStrategiesOpen] = useState(false);
   const [isEducationOpen, setIsEducationOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAllWorkspacesOpen, setIsAllWorkspacesOpen] = useState(false);
   const [strategyStorageRead] = useState(readStoredStrategies);
   const [strategies, setStrategies] = useState<SavedStrategy[]>(
     strategyStorageRead.strategies,
@@ -639,7 +641,6 @@ function App() {
     setIsStrategiesOpen(false);
     setIsEducationOpen(false);
     setIsSettingsOpen(false);
-    setIsAllWorkspacesOpen(false);
     window.requestAnimationFrame(() => composerRef.current?.focus());
   };
 
@@ -651,24 +652,9 @@ function App() {
     setIsStrategiesOpen(false);
     setIsEducationOpen(false);
     setIsSettingsOpen(false);
-    setIsAllWorkspacesOpen(false);
     setIsJournalEntryFormOpen(false);
     setActiveNavigation("Chat");
     setSelectedWorkspace(workspace);
-  };
-
-  const openAllWorkspaces = () => {
-    setIsDedicatedChatOpen(false);
-    setIsTradeJournalOpen(false);
-    setIsChartAnalysisOpen(false);
-    setIsBacktestingOpen(false);
-    setIsStrategiesOpen(false);
-    setIsEducationOpen(false);
-    setIsSettingsOpen(false);
-    setIsAllWorkspacesOpen(true);
-    setIsJournalEntryFormOpen(false);
-    setActiveNavigation("");
-    setSelectedWorkspace("All Workspaces");
   };
 
   const handleNavigation = (name: string) => {
@@ -679,7 +665,7 @@ function App() {
       "Chart Analysis": "Futures Trading",
       "Trade Journal": "My Journal",
       "Strategies & Code": "Strategy Development",
-      "Backtesting": "Strategy Development",
+      Backtesting: "Strategy Development",
       "News & Research": "Futures Trading",
       Education: "Learning Hub",
     };
@@ -694,7 +680,6 @@ function App() {
       );
       return;
     }
-    setIsAllWorkspacesOpen(false);
     setIsEducationOpen(name === "Education");
     setIsSettingsOpen(name === "Settings");
     setIsBacktestingOpen(name === "Backtesting");
@@ -729,11 +714,7 @@ function App() {
   };
 
   const handleWorkspaceNavigation = (name: string) => {
-    if (name === "All Workspaces") {
-      openAllWorkspaces();
-      return;
-    }
-    if (name === "Futures Trading") {
+    if (name === "Futures Trading" || name === "All Workspaces") {
       returnToDashboard(name);
       return;
     }
@@ -757,7 +738,9 @@ function App() {
     setStrategies(nextStrategies);
     const notice = persistStrategies(nextStrategies);
     setStrategyStorageNotice(notice ?? "");
-    if (!nextStrategies.some((strategy) => strategy.id === selectedStrategyId)) {
+    if (
+      !nextStrategies.some((strategy) => strategy.id === selectedStrategyId)
+    ) {
       setSelectedStrategyId(nextStrategies[0]?.id ?? "");
     }
     return notice;
@@ -849,7 +832,43 @@ function App() {
       journalFilter === "All" ||
       (journalFilter === "Wins" ? trade.pnl > 0 : trade.pnl <= 0),
   );
+  if (publicPage === "landing") {
+    return (
+      <>
+        <LandingPage
+          onGetStarted={() => setPublicPage("app")}
+          onAboutUs={() => setPublicPage("about")}
+          onAccountAction={(action) =>
+            notify(`${action} is not available yet.`)
+          }
+          onOpenFeature={(section) => {
+            setPublicPage("app");
+            handleNavigation(section);
+          }}
+        />
+        {toast && (
+          <div
+            className="toast-message"
+            role="status"
+            data-testid="status-toast"
+          >
+            <span>{toast}</span>
+            <button
+              aria-label="Dismiss notification"
+              onClick={() => setToast("")}
+              data-testid="button-dismiss-toast"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </>
+    );
+  }
 
+  if (publicPage === "about") {
+    return <AboutUsPage onBack={() => setPublicPage("landing")} />;
+  }
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -998,18 +1017,9 @@ function App() {
       </aside>
 
       <main
-        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen || isAllWorkspacesOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
+        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
       >
-        {isAllWorkspacesOpen ? (
-          <AllWorkspacesPage
-            items={primaryNavigation.map(({ name, icon: Icon }) => ({
-              name,
-              icon: <Icon size={16} strokeWidth={1.8} />,
-            }))}
-            onOpen={handleNavigation}
-            onBack={() => returnToDashboard()}
-          />
-        ) : isTradeJournalOpen ? (
+        {isTradeJournalOpen ? (
           <section className="journal-workspace" aria-label="Trade Journal">
             <header className="dedicated-chat-header">
               <div className="dedicated-chat-identity">
@@ -1023,7 +1033,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
+                onClick={returnToDashboard}
                 data-testid="button-journal-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1404,7 +1414,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
+                onClick={returnToDashboard}
                 data-testid="button-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1513,7 +1523,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
+                onClick={returnToDashboard}
                 data-testid="button-chart-analysis-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
