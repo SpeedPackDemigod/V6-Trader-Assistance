@@ -114,16 +114,16 @@
 .public-hero h1 {
   margin: 25px 0 19px;
   color: #f0eff7;
-  font-size: clamp(43px, 5.5vw, 71px);
+  font-size: clamp(36px, 2.9vw, 42px);
   font-weight: 570;
-  letter-spacing: -.066em;
-  line-height: 1.04;
+  letter-spacing: -.045em;
+  line-height: 1.1;
 }
 .public-hero h1 em,
 .section-heading h2 em,
 .process-intro h2 em,
 .closing-copy h2 em { color: #bba2ff; font-style: normal; }
-.hero-description { max-width: 500px; margin: 0; color: #a8b0c2; font-size: 14px; line-height: 1.8; }
+.hero-description { max-width: 500px; margin: 0; color: #a8b0c2; font-size: 13px; line-height: 1.8; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 31px; }
 .button-primary,
 .button-secondary,
@@ -360,7 +360,7 @@
   .public-hero,.features-section,.closing-section { width: calc(100% - 36px); }
   .public-hero { gap: 5px; padding: 62px 0 72px; }
   .eyebrow { font-size: 8px; letter-spacing: .13em; }
-  .public-hero h1 { margin-top: 22px; font-size: clamp(40px, 11vw, 58px); }
+  .public-hero h1 { margin-top: 22px; font-size: clamp(28px, 8vw, 34px); line-height: 1.1; letter-spacing: -.045em; }
   .hero-description { font-size: 12px; line-height: 1.75; }
   .hero-actions { gap: 8px; margin-top: 23px; }
   .button-primary,.button-secondary { min-height: 42px; }
