@@ -1,5 +1,12 @@
 import EducationPage from "./pages/education";
 import SettingsPage from "./pages/settings";
+import BacktestingPage from "./pages/backtesting";
+import StrategiesPage from "./pages/strategies";
+import {
+  persistStrategies,
+  readStoredStrategies,
+  type SavedStrategy,
+} from "./lib/strategies";
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   Activity,
@@ -569,8 +576,20 @@ function App() {
   const [isDedicatedChatOpen, setIsDedicatedChatOpen] = useState(false);
   const [isTradeJournalOpen, setIsTradeJournalOpen] = useState(false);
   const [isChartAnalysisOpen, setIsChartAnalysisOpen] = useState(false);
+  const [isBacktestingOpen, setIsBacktestingOpen] = useState(false);
+  const [isStrategiesOpen, setIsStrategiesOpen] = useState(false);
   const [isEducationOpen, setIsEducationOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [strategyStorageRead] = useState(readStoredStrategies);
+  const [strategies, setStrategies] = useState<SavedStrategy[]>(
+    strategyStorageRead.strategies,
+  );
+  const [strategyStorageNotice, setStrategyStorageNotice] = useState(
+    strategyStorageRead.notice,
+  );
+  const [selectedStrategyId, setSelectedStrategyId] = useState(
+    strategyStorageRead.strategies[0]?.id ?? "",
+  );
   const [selectedWorkspace, setSelectedWorkspace] = useState("Futures Trading");
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolCode>("NQ");
   const [selectedTimeframe, setSelectedTimeframe] =
@@ -614,22 +633,41 @@ function App() {
     setIsDedicatedChatOpen(true);
     setIsTradeJournalOpen(false);
     setIsChartAnalysisOpen(false);
+    setIsBacktestingOpen(false);
+    setIsStrategiesOpen(false);
     setIsEducationOpen(false);
+    setIsSettingsOpen(false);
     window.requestAnimationFrame(() => composerRef.current?.focus());
   };
 
-  const returnToDashboard = () => {
+  const returnToDashboard = (workspace = "Futures Trading") => {
     setIsDedicatedChatOpen(false);
     setIsTradeJournalOpen(false);
     setIsChartAnalysisOpen(false);
+    setIsBacktestingOpen(false);
+    setIsStrategiesOpen(false);
     setIsEducationOpen(false);
     setIsSettingsOpen(false);
     setIsJournalEntryFormOpen(false);
     setActiveNavigation("Chat");
+    setSelectedWorkspace(workspace);
   };
 
   const handleNavigation = (name: string) => {
     setActiveNavigation(name);
+    const workspaceByNavigation: Record<string, string> = {
+      Chat: "Futures Trading",
+      "Market Analysis": "Futures Trading",
+      "Chart Analysis": "Futures Trading",
+      "Trade Journal": "My Journal",
+      "Strategies & Code": "Strategy Development",
+      "Backtesting": "Strategy Development",
+      "News & Research": "Futures Trading",
+      Education: "Learning Hub",
+    };
+    if (workspaceByNavigation[name]) {
+      setSelectedWorkspace(workspaceByNavigation[name]);
+    }
     if (name === "News & Research") {
       window.open(
         "https://www.forexfactory.com/calendar/",
@@ -640,6 +678,8 @@ function App() {
     }
     setIsEducationOpen(name === "Education");
     setIsSettingsOpen(name === "Settings");
+    setIsBacktestingOpen(name === "Backtesting");
+    setIsStrategiesOpen(name === "Strategies & Code");
 
     if (name === "Chat") {
       openDedicatedChat();
@@ -662,9 +702,42 @@ function App() {
           .getElementById("market-overview")
           ?.scrollIntoView({ behavior: "smooth", block: "center" }),
       );
+    } else if (name === "Backtesting" || name === "Strategies & Code") {
+      return;
     } else {
       notify(`${name} is a local demo navigation item.`);
     }
+  };
+
+  const handleWorkspaceNavigation = (name: string) => {
+    if (name === "Futures Trading" || name === "All Workspaces") {
+      returnToDashboard(name);
+      return;
+    }
+
+    const pageByWorkspace: Record<string, string> = {
+      "My Journal": "Trade Journal",
+      "Strategy Development": "Strategies & Code",
+      "Learning Hub": "Education",
+    };
+    const destination = pageByWorkspace[name];
+    if (!destination) {
+      notify("This workspace is not available.");
+      return;
+    }
+
+    handleNavigation(destination);
+    setSelectedWorkspace(name);
+  };
+
+  const updateStrategies = (nextStrategies: SavedStrategy[]) => {
+    setStrategies(nextStrategies);
+    const notice = persistStrategies(nextStrategies);
+    setStrategyStorageNotice(notice ?? "");
+    if (!nextStrategies.some((strategy) => strategy.id === selectedStrategyId)) {
+      setSelectedStrategyId(nextStrategies[0]?.id ?? "");
+    }
+    return notice;
   };
 
   const addJournalTrade = (event: FormEvent<HTMLFormElement>) => {
@@ -724,8 +797,7 @@ function App() {
 
   const runQuickAction = (action: string) => {
     if (action === "Analyze Chart") {
-      setDraft("Analyze this chart and outline the key levels.");
-      openDedicatedChat();
+      handleNavigation("Chart Analysis");
     } else if (action === "Check Market News") {
       handleNavigation("News & Research");
     } else if (action === "View Journal") {
@@ -863,7 +935,7 @@ function App() {
               <button
                 key={name}
                 className={`workspace-item ${selectedWorkspace === name ? "workspace-active" : ""}`}
-                onClick={() => setSelectedWorkspace(name)}
+                onClick={() => handleWorkspaceNavigation(name)}
                 data-testid={`workspace-${name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`}
               >
                 <Icon size={14} />
@@ -903,7 +975,7 @@ function App() {
       </aside>
 
       <main
-        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
+        className={`main-area${isDedicatedChatOpen || isTradeJournalOpen || isChartAnalysisOpen || isBacktestingOpen || isStrategiesOpen ? " dedicated-chat-mode" : ""}${isChartAnalysisOpen ? " chart-analysis-mode" : ""}`}
       >
         {isTradeJournalOpen ? (
           <section className="journal-workspace" aria-label="Trade Journal">
@@ -919,7 +991,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-journal-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1300,7 +1372,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1409,7 +1481,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={returnToDashboard}
+                onClick={() => returnToDashboard()}
                 data-testid="button-chart-analysis-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1433,6 +1505,25 @@ function App() {
           <EducationPage onBack={returnToDashboard} />
         ) : isSettingsOpen ? (
           <SettingsPage onBack={returnToDashboard} />
+        ) : isBacktestingOpen ? (
+          <BacktestingPage
+            strategies={strategies}
+            selectedStrategyId={selectedStrategyId}
+            onSelectedStrategyChange={setSelectedStrategyId}
+            onBack={returnToDashboard}
+            onManageStrategies={() => handleNavigation("Strategies & Code")}
+          />
+        ) : isStrategiesOpen ? (
+          <StrategiesPage
+            strategies={strategies}
+            onStrategiesChange={updateStrategies}
+            onSendToBacktesting={(strategyId) => {
+              setSelectedStrategyId(strategyId);
+              handleNavigation("Backtesting");
+            }}
+            onBack={returnToDashboard}
+            storageNotice={strategyStorageNotice}
+          />
         ) : (
           <>
             <div className="center-column">
