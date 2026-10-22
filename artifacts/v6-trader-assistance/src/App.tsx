@@ -991,7 +991,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
+                onClick={returnToDashboard}
                 data-testid="button-journal-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1372,7 +1372,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
+                onClick={returnToDashboard}
                 data-testid="button-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
@@ -1481,7 +1481,7 @@ function App() {
               </div>
               <button
                 className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
+                onClick={returnToDashboard}
                 data-testid="button-chart-analysis-back-to-dashboard"
               >
                 <ArrowLeft size={14} />
