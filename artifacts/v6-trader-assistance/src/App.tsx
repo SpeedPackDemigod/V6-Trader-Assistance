@@ -1643,7 +1643,7 @@ function App() {
               <div className="dedicated-chat-identity">
                 <div>
                   <h1>V6 AI Chat</h1>
-                  <p>OpenAI-powered chat · No live market data</p>
+                  <p>OpenRouter free-model chat · No live market data</p>
                 </div>
               </div>
               <button

@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { Router, type IRouter } from "express";
 import {
   CreateChatCompletionBody,
@@ -8,6 +7,9 @@ import {
 const router: IRouter = Router();
 const CHAT_REQUEST_WINDOW_MS = 60_000;
 const CHAT_REQUESTS_PER_WINDOW = 30;
+const OPENROUTER_CHAT_COMPLETIONS_URL =
+  "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_FREE_MODEL = "openrouter/free";
 const recentChatRequestTimes: number[] = [];
 
 const V6_SYSTEM_PROMPT = `You are V6 Trader Assistance, an educational assistant specializing in futures trading.
@@ -60,39 +62,111 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
     return;
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
     res.status(503).json({
       error:
-        "OpenAI is not configured yet. Add OPENAI_API_KEY in Replit Secrets, then restart the API server.",
+        "OpenRouter is not configured yet. Add OPENROUTER_API_KEY in Replit Secrets, then restart the API server.",
       code: "AI_NOT_CONFIGURED",
     });
     return;
   }
 
-  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.4-mini";
-
   try {
-    const client = new OpenAI({
-      apiKey,
-      maxRetries: 0,
-      timeout: 60_000,
-    });
-    const completion = await client.chat.completions.create({
-      model,
-      max_completion_tokens: 8192,
-      messages: [
-        { role: "system", content: V6_SYSTEM_PROMPT },
-        ...parsed.data.messages.map(({ role, content }) => ({
-          role,
-          content,
-        })),
-      ],
+    const upstreamResponse = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_FREE_MODEL,
+        max_tokens: 8192,
+        messages: [
+          { role: "system", content: V6_SYSTEM_PROMPT },
+          ...parsed.data.messages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+        ],
+      }),
+      signal: AbortSignal.timeout(60_000),
     });
 
-    const reply = completion.choices[0]?.message?.content?.trim();
+    if (upstreamResponse.status === 429) {
+      res.status(429).json({
+        error:
+          "OpenRouter's free model is rate-limiting requests right now. Wait a moment and try again.",
+        code: "RATE_LIMITED",
+      });
+      return;
+    }
+
+    if (upstreamResponse.status === 401) {
+      req.log.warn(
+        { model: OPENROUTER_FREE_MODEL },
+        "OpenRouter rejected the configured API key",
+      );
+      res.status(503).json({
+        error:
+          "OpenRouter rejected the configured API key. Check OPENROUTER_API_KEY in Replit Secrets, then restart the API server.",
+        code: "AI_NOT_CONFIGURED",
+      });
+      return;
+    }
+
+    if (upstreamResponse.status === 402 || upstreamResponse.status === 403) {
+      req.log.warn(
+        {
+          model: OPENROUTER_FREE_MODEL,
+          upstreamStatus: upstreamResponse.status,
+        },
+        "OpenRouter could not serve the free model",
+      );
+      res.status(503).json({
+        error:
+          "OpenRouter could not provide a free model for this request. Check free-model access and availability; V6 will not use paid models.",
+        code: "UPSTREAM_ERROR",
+      });
+      return;
+    }
+
+    if (!upstreamResponse.ok) {
+      req.log.warn(
+        {
+          model: OPENROUTER_FREE_MODEL,
+          upstreamStatus: upstreamResponse.status,
+        },
+        "OpenRouter returned an unsuccessful chat response",
+      );
+      res.status(502).json({
+        error:
+          "V6 could not reach the AI service. Check your connection and try again.",
+        code: "UPSTREAM_ERROR",
+      });
+      return;
+    }
+
+    const completion: unknown = await upstreamResponse.json();
+    const reply =
+      typeof completion === "object" &&
+      completion !== null &&
+      "choices" in completion &&
+      Array.isArray(completion.choices) &&
+      typeof completion.choices[0] === "object" &&
+      completion.choices[0] !== null &&
+      "message" in completion.choices[0] &&
+      typeof completion.choices[0].message === "object" &&
+      completion.choices[0].message !== null &&
+      "content" in completion.choices[0].message &&
+      typeof completion.choices[0].message.content === "string"
+        ? completion.choices[0].message.content.trim()
+        : "";
     if (!reply) {
-      req.log.warn({ model }, "OpenAI returned an empty chat response");
+      req.log.warn(
+        { model: OPENROUTER_FREE_MODEL },
+        "OpenRouter returned an empty chat response",
+      );
       res.status(502).json({
         error: "V6 could not generate a response. Please try again.",
         code: "UPSTREAM_ERROR",
@@ -102,34 +176,12 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
 
     res.json(CreateChatCompletionResponse.parse({ reply }));
   } catch (error) {
-    if (error instanceof OpenAI.APIError && error.status === 429) {
-      res.status(429).json({
-        error:
-          "OpenAI is rate-limiting requests right now. Wait a moment and try again.",
-        code: "RATE_LIMITED",
-      });
-      return;
-    }
-
-    if (error instanceof OpenAI.APIError && error.status === 401) {
-      req.log.warn({ model }, "OpenAI rejected the configured API key");
-      res.status(503).json({
-        error:
-          "OpenAI rejected the configured API key. Replace OPENAI_API_KEY in Replit Secrets with a valid key, then restart the API server.",
-        code: "AI_NOT_CONFIGURED",
-      });
-      return;
-    }
-
     req.log.error(
       {
-        model,
-        upstreamStatus:
-          error instanceof OpenAI.APIError ? error.status : undefined,
-        errorName:
-          error instanceof Error ? error.name : "UnknownOpenAIError",
+        model: OPENROUTER_FREE_MODEL,
+        errorName: error instanceof Error ? error.name : "UnknownError",
       },
-      "OpenAI chat request failed",
+      "OpenRouter chat request failed",
     );
     res.status(502).json({
       error:

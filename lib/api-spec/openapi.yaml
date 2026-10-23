@@ -57,19 +57,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ChatError"
         "429":
-          description: OpenAI rate limit reached
+          description: AI provider rate limit reached
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatError"
         "502":
-          description: OpenAI returned an unusable response
+          description: AI provider returned an unusable response
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatError"
         "503":
-          description: OpenAI API credentials are missing or were rejected
+          description: AI provider credentials are missing or were rejected
           content:
             application/json:
               schema:
