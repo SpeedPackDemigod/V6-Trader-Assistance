@@ -4,6 +4,7 @@ import BacktestingPage from "./pages/backtesting";
 import StrategiesPage from "./pages/strategies";
 import AllWorkspacesPage from "./pages/all-workspaces";
 import { LandingPage, AboutUsPage } from "./pages/public-pages";
+import type { ChatInput } from "@workspace/api-client-react";
 import {
   persistStrategies,
   readStoredStrategies,
@@ -622,6 +623,8 @@ function App() {
     useState<(typeof chartTabs)[number]>("Chart");
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<LocalMessage[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [chatError, setChatError] = useState("");
   const [journalStorageRead] = useState(readStoredJournalTrades);
   const [userJournalTrades, setUserJournalTrades] = useState(
     journalStorageRead.entries,
@@ -849,20 +852,81 @@ function App() {
     notify("Trade added to your local demo journal.");
   };
 
-  const sendMessage = (event: FormEvent<HTMLFormElement>) => {
+  const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = draft.trim();
-    if (!text) return;
-    setMessages((current) => [
-      ...current,
-      { id: Date.now(), role: "user", text },
-      {
-        id: Date.now() + 1,
-        role: "assistant",
-        text: "This is a local demo response. Start with the level that would invalidate your idea, then consider whether the potential reward justifies the risk. No live AI or market service is connected.",
-      },
-    ]);
-    setDraft("");
+    if (!text || text.length > 1000 || isSending) return;
+
+    const userMessage: LocalMessage = {
+      id: Date.now(),
+      role: "user",
+      text,
+    };
+    const requestMessages: ChatInput = {
+      messages: [...messages, userMessage]
+        .slice(-12)
+        .map(({ role, text: content }) => ({ role, content })),
+    };
+
+    setChatError("");
+    setIsSending(true);
+    try {
+      const response = await fetch("/api/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestMessages),
+      });
+
+      let result: unknown;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(
+          "V6 could not read the server response. Please try again.",
+        );
+      }
+
+      if (!response.ok) {
+        const message =
+          typeof result === "object" &&
+          result !== null &&
+          "error" in result &&
+          typeof result.error === "string"
+            ? result.error
+            : "V6 could not complete the request. Please try again.";
+        throw new Error(message);
+      }
+
+      const reply =
+        typeof result === "object" &&
+        result !== null &&
+        "reply" in result &&
+        typeof result.reply === "string"
+          ? result.reply.trim()
+          : "";
+      if (!reply) {
+        throw new Error(
+          "V6 returned an empty response. Please try sending your message again.",
+        );
+      }
+
+      setMessages((current) => [
+        ...current,
+        userMessage,
+        { id: Date.now() + 1, role: "assistant", text: reply },
+      ]);
+      setDraft("");
+    } catch (error) {
+      setChatError(
+        error instanceof TypeError
+          ? "Could not connect to V6. Check your connection and try again."
+          : error instanceof Error
+            ? error.message
+            : "V6 could not complete the request. Please try again.",
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const submitOnEnter = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
@@ -1061,8 +1125,10 @@ function App() {
           onClick={() => {
             setMessages([]);
             setDraft("");
+            setChatError("");
             openDedicatedChat();
           }}
+          disabled={isSending}
           data-testid="button-new-chat"
         >
           <Plus size={16} /> <span>New Chat</span>
@@ -1577,7 +1643,7 @@ function App() {
               <div className="dedicated-chat-identity">
                 <div>
                   <h1>V6 AI Chat</h1>
-                  <p>Local demo session · Sample responses only</p>
+                  <p>OpenAI-powered chat · No live market data</p>
                 </div>
               </div>
               <button
@@ -1598,9 +1664,9 @@ function App() {
                   </div>
                   <h2>Start a conversation</h2>
                   <p>
-                    Ask about a setup, market structure, or your trading
-                    process. Replies are local sample guidance; no live AI or
-                    market service is connected.
+                    Ask about a futures setup, market structure, or your
+                    trading process. Responses are AI-generated educational
+                    guidance; no live price or chart data is connected.
                   </p>
                   <div className="dedicated-chat-quick-prompts">
                     {welcomePrompts.slice(0, 3).map((prompt) => (
@@ -1633,8 +1699,26 @@ function App() {
                   </div>
                 ))
               )}
+              {isSending && (
+                <div
+                  className="followup-message followup-assistant chat-loading"
+                  role="status"
+                  aria-label="V6 is generating a response"
+                  data-testid="chat-loading-dedicated"
+                >
+                  <div className="followup-bubble">
+                    <strong>V6 Trader Assistance</strong>
+                    <p><span className="chat-loading-dot" />V6 is thinking…</p>
+                  </div>
+                </div>
+              )}
             </div>
 
+            {chatError && (
+              <p className="chat-error" role="alert" data-testid="chat-error">
+                {chatError}
+              </p>
+            )}
             <form
               className="chat-composer dedicated-chat-composer"
               id="chat-composer"
@@ -1658,6 +1742,8 @@ function App() {
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={submitOnEnter}
+                maxLength={1000}
+                disabled={isSending}
                 placeholder="Ask V6 AI Chat about a setup, strategy, or trading process…"
                 aria-label="Ask V6 AI Chat"
                 data-testid="input-dedicated-chat"
@@ -1667,14 +1753,15 @@ function App() {
                 className="send-button"
                 type="submit"
                 aria-label="Send message"
+                disabled={isSending}
                 data-testid="button-dedicated-send"
               >
                 <Send size={15} />
               </button>
             </form>
             <p className="dedicated-chat-disclaimer">
-              Local demo · Replies are illustrative only · No trades are
-              executed · Not financial advice
+              AI-generated trading education · No live market data · No trades
+              are executed · Not financial advice
             </p>
           </section>
         ) : isChartAnalysisOpen ? (
@@ -1966,13 +2053,32 @@ function App() {
                       <strong>
                         {message.role === "user"
                           ? "You"
-                          : "V6 Trader Assistance · local demo"}
+                          : "V6 Trader Assistance"}
                       </strong>
                       <p>{message.text}</p>
                     </div>
                   </div>
                 ))}
 
+                {isSending && (
+                  <div
+                    className="followup-message followup-assistant chat-loading"
+                    role="status"
+                    aria-label="V6 is generating a response"
+                    data-testid="chat-loading-dashboard"
+                  >
+                    <div className="followup-bubble">
+                      <strong>V6 Trader Assistance</strong>
+                      <p><span className="chat-loading-dot" />V6 is thinking…</p>
+                    </div>
+                  </div>
+                )}
+
+                {chatError && (
+                  <p className="chat-error" role="alert" data-testid="chat-error">
+                    {chatError}
+                  </p>
+                )}
                 <form
                   className="chat-composer"
                   id="chat-composer"
@@ -1996,6 +2102,8 @@ function App() {
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={submitOnEnter}
+                    maxLength={1000}
+                    disabled={isSending}
                     placeholder="Ask me anything… (charts, strategies, market news, risk management, etc.)"
                     aria-label="Ask V6 Trader Assistance"
                     data-testid="input-chat"
@@ -2027,6 +2135,7 @@ function App() {
                     className="send-button"
                     type="submit"
                     aria-label="Send message"
+                    disabled={isSending}
                     data-testid="button-send"
                   >
                     <Send size={15} />

@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: chat
+    description: V6 AI chat operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /chat/completions:
+    post:
+      operationId: createChatCompletion
+      tags: [chat]
+      summary: Generate a V6 trading education response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatInput"
+      responses:
+        "200":
+          description: AI-generated assistant response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletion"
+        "400":
+          description: Invalid chat request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatError"
+        "413":
+          description: Chat request exceeds the body-size limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatError"
+        "429":
+          description: OpenAI rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatError"
+        "502":
+          description: OpenAI returned an unusable response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatError"
+        "503":
+          description: OpenAI API credentials are missing or were rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +83,48 @@ components:
           type: string
       required:
         - status
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required: [role, content]
+    ChatInput:
+      type: object
+      additionalProperties: false
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+      required: [messages]
+    ChatCompletion:
+      type: object
+      additionalProperties: false
+      properties:
+        reply:
+          type: string
+      required: [reply]
+    ChatError:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - AI_NOT_CONFIGURED
+            - RATE_LIMITED
+            - UPSTREAM_ERROR
+      required: [error, code]
 

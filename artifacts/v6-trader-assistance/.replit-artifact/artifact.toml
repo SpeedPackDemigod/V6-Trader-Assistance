@@ -1,7 +1,7 @@
 kind = "web"
 previewPath = "/"
 title = "V6 Trader Assistance"
-description = "A responsive, front-end-only AI trading assistant dashboard with V6 AI Chat, Chart Analysis, Trading Journal, and Risk Manager tools. No external services or paid APIs."
+description = "A futures trading workspace with an OpenAI chat integration, chart analysis, journaling, risk tools, and clearly labeled sample market data. Chat requires a valid server-side key and has no live market feed or trade execution."
 version = "1.0.0"
 id = "artifacts/v6-trader-assistance"
 router = "path"
