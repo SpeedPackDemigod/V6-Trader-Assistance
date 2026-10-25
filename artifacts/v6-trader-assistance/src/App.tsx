@@ -39,6 +39,9 @@ import {
   MoreHorizontal,
   Newspaper,
   Paperclip,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
   Plus,
   Search,
   Send,
@@ -46,6 +49,7 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  Trash2,
   UserRound,
   Wallet,
   X,
@@ -56,6 +60,114 @@ type LocalMessage = {
   role: "user" | "assistant";
   text: string;
 };
+
+type SavedChatConversation = {
+  id: string;
+  title: string;
+  messages: LocalMessage[];
+  createdAt: number;
+  updatedAt: number;
+};
+
+type StoredChatHistory = {
+  conversations: SavedChatConversation[];
+  activeConversationId: string | null;
+  storageError: boolean;
+};
+
+const CHAT_HISTORY_STORAGE_KEY = "v6-trader-assistance:chat-history:v1";
+
+function isLocalMessage(value: unknown): value is LocalMessage {
+  if (typeof value !== "object" || value === null) return false;
+  return (
+    "id" in value &&
+    typeof value.id === "number" &&
+    "role" in value &&
+    (value.role === "user" || value.role === "assistant") &&
+    "text" in value &&
+    typeof value.text === "string"
+  );
+}
+
+function isSavedChatConversation(
+  value: unknown,
+): value is SavedChatConversation {
+  if (typeof value !== "object" || value === null) return false;
+  return (
+    "id" in value &&
+    typeof value.id === "string" &&
+    "title" in value &&
+    typeof value.title === "string" &&
+    "messages" in value &&
+    Array.isArray(value.messages) &&
+    value.messages.every(isLocalMessage) &&
+    "createdAt" in value &&
+    typeof value.createdAt === "number" &&
+    "updatedAt" in value &&
+    typeof value.updatedAt === "number"
+  );
+}
+
+function readStoredChatHistory(): StoredChatHistory {
+  try {
+    const saved = window.localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    if (!saved) {
+      return {
+        conversations: [],
+        activeConversationId: null,
+        storageError: false,
+      };
+    }
+
+    const parsed: unknown = JSON.parse(saved);
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      !("conversations" in parsed) ||
+      !Array.isArray(parsed.conversations)
+    ) {
+      return {
+        conversations: [],
+        activeConversationId: null,
+        storageError: false,
+      };
+    }
+
+    const conversations = parsed.conversations
+      .filter(isSavedChatConversation)
+      .sort((left, right) => right.updatedAt - left.updatedAt);
+    const requestedActiveId =
+      "activeConversationId" in parsed &&
+      typeof parsed.activeConversationId === "string"
+        ? parsed.activeConversationId
+        : null;
+
+    return {
+      conversations,
+      activeConversationId:
+        requestedActiveId ?? conversations[0]?.id ?? null,
+      storageError: false,
+    };
+  } catch {
+    return {
+      conversations: [],
+      activeConversationId: null,
+      storageError: true,
+    };
+  }
+}
+
+function createChatConversationId(): string {
+  return typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createChatTitle(message: string): string {
+  const title = message.replace(/\s+/g, " ").trim();
+  return title.length > 52 ? `${title.slice(0, 52).trimEnd()}…` : title;
+}
 
 type JournalTrade = {
   id: number;
@@ -622,7 +734,27 @@ function App() {
   const [selectedChartTab, setSelectedChartTab] =
     useState<(typeof chartTabs)[number]>("Chart");
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<LocalMessage[]>([]);
+  const [chatHistoryRead] = useState(readStoredChatHistory);
+  const [chatConversations, setChatConversations] = useState(
+    chatHistoryRead.conversations,
+  );
+  const [activeConversationId, setActiveConversationId] = useState(
+    () => chatHistoryRead.activeConversationId ?? createChatConversationId(),
+  );
+  const [messages, setMessages] = useState<LocalMessage[]>(() => {
+    return (
+      chatHistoryRead.conversations.find(
+        (conversation) =>
+          conversation.id === chatHistoryRead.activeConversationId,
+      )?.messages ?? []
+    );
+  });
+  const [isChatHistoryCollapsed, setIsChatHistoryCollapsed] = useState(
+    () => window.matchMedia("(max-width: 600px)").matches,
+  );
+  const [chatHistoryStorageError, setChatHistoryStorageError] = useState(
+    chatHistoryRead.storageError,
+  );
   const [isSending, setIsSending] = useState(false);
   const [chatError, setChatError] = useState("");
   const [journalStorageRead] = useState(readStoredJournalTrades);
@@ -643,6 +775,47 @@ function App() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const firstUserMessage = messages.find((message) => message.role === "user");
+    if (!activeConversationId || !firstUserMessage) return;
+
+    const updatedAt = Date.now();
+    setChatConversations((current) => {
+      const existing = current.find(
+        (conversation) => conversation.id === activeConversationId,
+      );
+      const updatedConversation: SavedChatConversation = {
+        id: activeConversationId,
+        title: existing?.title || createChatTitle(firstUserMessage.text),
+        messages,
+        createdAt: existing?.createdAt ?? updatedAt,
+        updatedAt,
+      };
+      return [
+        updatedConversation,
+        ...current.filter(
+          (conversation) => conversation.id !== activeConversationId,
+        ),
+      ].sort((left, right) => right.updatedAt - left.updatedAt);
+    });
+  }, [activeConversationId, messages]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        CHAT_HISTORY_STORAGE_KEY,
+        JSON.stringify({
+          version: 1,
+          activeConversationId,
+          conversations: chatConversations,
+        }),
+      );
+      setChatHistoryStorageError(false);
+    } catch {
+      setChatHistoryStorageError(true);
+    }
+  }, [activeConversationId, chatConversations]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -850,6 +1023,79 @@ function App() {
     setJournalDraft(emptyJournalDraft());
     setIsJournalEntryFormOpen(false);
     notify("Trade added to your local demo journal.");
+  };
+
+  const startNewChat = () => {
+    if (isSending) return;
+    setActiveConversationId(createChatConversationId());
+    setMessages([]);
+    setDraft("");
+    setChatError("");
+    if (window.matchMedia("(max-width: 600px)").matches) {
+      setIsChatHistoryCollapsed(true);
+    }
+  };
+
+  const openChatConversation = (conversationId: string) => {
+    if (isSending || conversationId === activeConversationId) return;
+    const conversation = chatConversations.find(
+      (item) => item.id === conversationId,
+    );
+    if (!conversation) return;
+
+    setActiveConversationId(conversation.id);
+    setMessages(conversation.messages);
+    setDraft("");
+    setChatError("");
+    if (window.matchMedia("(max-width: 600px)").matches) {
+      setIsChatHistoryCollapsed(true);
+    }
+  };
+
+  const renameChatConversation = (conversationId: string) => {
+    if (isSending) return;
+    const conversation = chatConversations.find(
+      (item) => item.id === conversationId,
+    );
+    if (!conversation) return;
+
+    const requestedTitle = window.prompt(
+      "Rename conversation",
+      conversation.title,
+    );
+    const title = requestedTitle?.trim();
+    if (!title) return;
+
+    setChatConversations((current) =>
+      current.map((item) =>
+        item.id === conversationId ? { ...item, title } : item,
+      ),
+    );
+  };
+
+  const deleteChatConversation = (conversationId: string) => {
+    if (isSending) return;
+    const conversation = chatConversations.find(
+      (item) => item.id === conversationId,
+    );
+    if (!conversation) return;
+    if (
+      !window.confirm(
+        `Delete “${conversation.title}”? This conversation cannot be recovered.`,
+      )
+    ) {
+      return;
+    }
+
+    setChatConversations((current) =>
+      current.filter((item) => item.id !== conversationId),
+    );
+    if (conversationId === activeConversationId) {
+      setActiveConversationId(createChatConversationId());
+      setMessages([]);
+      setDraft("");
+      setChatError("");
+    }
   };
 
   const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
@@ -1123,9 +1369,7 @@ function App() {
         <button
           className="new-chat-button"
           onClick={() => {
-            setMessages([]);
-            setDraft("");
-            setChatError("");
+            startNewChat();
             openDedicatedChat();
           }}
           disabled={isSending}
@@ -1646,123 +1890,268 @@ function App() {
                   <p>OpenRouter free-model chat · No live market data</p>
                 </div>
               </div>
-              <button
-                className="return-dashboard-button"
-                onClick={() => returnToDashboard()}
-                data-testid="button-back-to-dashboard"
-              >
-                <ArrowLeft size={14} />
-                <span>Back to Dashboard</span>
-              </button>
+              <div className="chat-header-actions">
+                <button
+                  className="chat-history-toggle"
+                  type="button"
+                  onClick={() =>
+                    setIsChatHistoryCollapsed((collapsed) => !collapsed)
+                  }
+                  aria-controls="chat-history-sidebar"
+                  aria-expanded={!isChatHistoryCollapsed}
+                  aria-label={
+                    isChatHistoryCollapsed
+                      ? "Show chat history"
+                      : "Hide chat history"
+                  }
+                  data-testid="button-toggle-chat-history"
+                >
+                  {isChatHistoryCollapsed ? (
+                    <PanelLeftOpen size={14} />
+                  ) : (
+                    <PanelLeftClose size={14} />
+                  )}
+                  <span>
+                    {isChatHistoryCollapsed ? "Show history" : "Hide history"}
+                  </span>
+                </button>
+                <button
+                  className="return-dashboard-button"
+                  onClick={() => returnToDashboard()}
+                  data-testid="button-back-to-dashboard"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to Dashboard</span>
+                </button>
+              </div>
             </header>
 
-            <div className="dedicated-chat-history" aria-live="polite">
-              {messages.length === 0 ? (
-                <div className="dedicated-chat-empty">
-                  <div className="dedicated-chat-empty-icon">
-                    <Bot size={22} />
-                  </div>
-                  <h2>Start a conversation</h2>
-                  <p>
-                    Ask about a futures setup, market structure, or your
-                    trading process. Responses are AI-generated educational
-                    guidance; no live price or chart data is connected.
-                  </p>
-                  <div className="dedicated-chat-quick-prompts">
-                    {welcomePrompts.slice(0, 3).map((prompt) => (
-                      <button
-                        key={prompt}
-                        onClick={() => focusComposer(prompt)}
-                        data-testid={`dedicated-${prompt.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`}
-                      >
-                        <Sparkles size={11} />
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    className={`followup-message ${message.role === "user" ? "followup-user" : "followup-assistant"}`}
-                    key={message.id}
-                    data-testid={`message-${message.role}-${message.id}`}
-                  >
-                    <div className="followup-bubble">
-                      <strong>
-                        {message.role === "user"
-                          ? "You"
-                          : "V6 Trader Assistance · local demo"}
-                      </strong>
-                      <p>{message.text}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-              {isSending && (
-                <div
-                  className="followup-message followup-assistant chat-loading"
-                  role="status"
-                  aria-label="V6 is generating a response"
-                  data-testid="chat-loading-dedicated"
+            <div className="chat-workspace-body">
+              {!isChatHistoryCollapsed && (
+                <aside
+                  className="chat-history-sidebar"
+                  id="chat-history-sidebar"
+                  aria-label="Chat history"
+                  data-testid="chat-history-sidebar"
                 >
-                  <div className="followup-bubble">
-                    <strong>V6 Trader Assistance</strong>
-                    <p><span className="chat-loading-dot" />V6 is thinking…</p>
+                  <div className="chat-history-sidebar-heading">
+                    <div>
+                      <h2>Chat history</h2>
+                      <p>Saved in this browser</p>
+                    </div>
+                    <button
+                      className="chat-new-conversation"
+                      type="button"
+                      onClick={startNewChat}
+                      disabled={isSending}
+                      data-testid="button-history-new-chat"
+                    >
+                      <Plus size={13} />
+                      <span>New Chat</span>
+                    </button>
                   </div>
-                </div>
+                  {chatHistoryStorageError && (
+                    <p
+                      className="chat-history-storage-error"
+                      role="status"
+                      data-testid="chat-history-storage-error"
+                    >
+                      Browser storage is unavailable; chats may not persist.
+                    </p>
+                  )}
+                  <div className="chat-history-list">
+                    {chatConversations.length === 0 ? (
+                      <p className="chat-history-empty">
+                        Your conversations will appear here.
+                      </p>
+                    ) : (
+                      chatConversations.map((conversation) => (
+                        <div
+                          className={`chat-history-conversation${conversation.id === activeConversationId ? " is-active" : ""}`}
+                          key={conversation.id}
+                        >
+                          <button
+                            className="chat-history-select"
+                            type="button"
+                            onClick={() =>
+                              openChatConversation(conversation.id)
+                            }
+                            aria-current={
+                              conversation.id === activeConversationId
+                                ? "page"
+                                : undefined
+                            }
+                            disabled={isSending}
+                            data-testid="button-history-select"
+                          >
+                            <span className="chat-history-title">
+                              {conversation.title}
+                            </span>
+                            <time
+                              dateTime={new Date(
+                                conversation.updatedAt,
+                              ).toISOString()}
+                            >
+                              {new Date(
+                                conversation.updatedAt,
+                              ).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </time>
+                          </button>
+                          <div className="chat-history-actions">
+                            <button
+                              className="chat-history-action"
+                              type="button"
+                              onClick={() =>
+                                renameChatConversation(conversation.id)
+                              }
+                              aria-label={`Rename ${conversation.title}`}
+                              title="Rename conversation"
+                              disabled={isSending}
+                              data-testid="button-history-rename"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              className="chat-history-action chat-history-delete"
+                              type="button"
+                              onClick={() =>
+                                deleteChatConversation(conversation.id)
+                              }
+                              aria-label={`Delete ${conversation.title}`}
+                              title="Delete conversation"
+                              disabled={isSending}
+                              data-testid="button-history-delete"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </aside>
               )}
-            </div>
 
-            {chatError && (
-              <p className="chat-error" role="alert" data-testid="chat-error">
-                {chatError}
-              </p>
-            )}
-            <form
-              className="chat-composer dedicated-chat-composer"
-              id="chat-composer"
-              onSubmit={sendMessage}
-            >
-              <button
-                type="button"
-                className="composer-icon"
-                aria-label="Attach file"
-                onClick={() =>
-                  notify(
-                    "File attachments are not enabled in this visual demo.",
-                  )
-                }
-                data-testid="button-dedicated-attach"
-              >
-                <Paperclip size={15} />
-              </button>
-              <textarea
-                ref={composerRef}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={submitOnEnter}
-                maxLength={1000}
-                disabled={isSending}
-                placeholder="Ask V6 AI Chat about a setup, strategy, or trading process…"
-                aria-label="Ask V6 AI Chat"
-                data-testid="input-dedicated-chat"
-                rows={1}
-              />
-              <button
-                className="send-button"
-                type="submit"
-                aria-label="Send message"
-                disabled={isSending}
-                data-testid="button-dedicated-send"
-              >
-                <Send size={15} />
-              </button>
-            </form>
-            <p className="dedicated-chat-disclaimer">
-              AI-generated trading education · No live market data · No trades
-              are executed · Not financial advice
-            </p>
+              <div className="chat-conversation-area">
+                <div className="dedicated-chat-history" aria-live="polite">
+                  {messages.length === 0 ? (
+                    <div className="dedicated-chat-empty">
+                      <div className="dedicated-chat-empty-icon">
+                        <Bot size={22} />
+                      </div>
+                      <h2>Start a conversation</h2>
+                      <p>
+                        Ask about a futures setup, market structure, or your
+                        trading process. Responses are AI-generated educational
+                        guidance; no live price or chart data is connected.
+                      </p>
+                      <div className="dedicated-chat-quick-prompts">
+                        {welcomePrompts.slice(0, 3).map((prompt) => (
+                          <button
+                            key={prompt}
+                            onClick={() => focusComposer(prompt)}
+                            data-testid={`dedicated-${prompt.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`}
+                          >
+                            <Sparkles size={11} />
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    messages.map((message) => (
+                      <div
+                        className={`followup-message ${message.role === "user" ? "followup-user" : "followup-assistant"}`}
+                        key={message.id}
+                        data-testid={`message-${message.role}-${message.id}`}
+                      >
+                        <div className="followup-bubble">
+                          <strong>
+                            {message.role === "user"
+                              ? "You"
+                              : "V6 Trader Assistance · local demo"}
+                          </strong>
+                          <p>{message.text}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {isSending && (
+                    <div
+                      className="followup-message followup-assistant chat-loading"
+                      role="status"
+                      aria-label="V6 is generating a response"
+                      data-testid="chat-loading-dedicated"
+                    >
+                      <div className="followup-bubble">
+                        <strong>V6 Trader Assistance</strong>
+                        <p>
+                          <span className="chat-loading-dot" />
+                          V6 is thinking…
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {chatError && (
+                  <p
+                    className="chat-error"
+                    role="alert"
+                    data-testid="chat-error"
+                  >
+                    {chatError}
+                  </p>
+                )}
+                <form
+                  className="chat-composer dedicated-chat-composer"
+                  id="chat-composer"
+                  onSubmit={sendMessage}
+                >
+                  <button
+                    type="button"
+                    className="composer-icon"
+                    aria-label="Attach file"
+                    onClick={() =>
+                      notify(
+                        "File attachments are not enabled in this visual demo.",
+                      )
+                    }
+                    data-testid="button-dedicated-attach"
+                  >
+                    <Paperclip size={15} />
+                  </button>
+                  <textarea
+                    ref={composerRef}
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={submitOnEnter}
+                    maxLength={1000}
+                    disabled={isSending}
+                    placeholder="Ask V6 AI Chat about a setup, strategy, or trading process…"
+                    aria-label="Ask V6 AI Chat"
+                    data-testid="input-dedicated-chat"
+                    rows={1}
+                  />
+                  <button
+                    className="send-button"
+                    type="submit"
+                    aria-label="Send message"
+                    disabled={isSending}
+                    data-testid="button-dedicated-send"
+                  >
+                    <Send size={15} />
+                  </button>
+                </form>
+                <p className="dedicated-chat-disclaimer">
+                  AI-generated trading education · No live market data · No
+                  trades are executed · Not financial advice
+                </p>
+              </div>
+            </div>
           </section>
         ) : isChartAnalysisOpen ? (
           <section className="chart-analysis-view" aria-label="Chart Analysis">
