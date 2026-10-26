@@ -5,9 +5,16 @@ import "./clerk-auth-pages.css";
 
 export const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+/* The deployed static host injects this key into index.html at startup, so the
+ * Clerk publishable key can be configured at runtime instead of being baked
+ * into the bundle. Build-time VITE_CLERK_PUBLISHABLE_KEY still wins. */
+const runtimeClerkPublishableKey = (
+  window as Window & { __V6_CLERK_PUBLISHABLE_KEY__?: string }
+).__V6_CLERK_PUBLISHABLE_KEY__;
+
 export const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || runtimeClerkPublishableKey,
 );
 
 export const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
