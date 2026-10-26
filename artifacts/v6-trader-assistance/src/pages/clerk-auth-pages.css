@@ -76,7 +76,7 @@
 
 .v6-auth-brand-copy strong {
   color: #e8e9f2;
-  font-size: clamp(0.6875rem, 0.62rem + 0.32vw, 0.8125rem);
+  font-size: clamp(0.75rem, 0.68rem + 0.32vw, 0.8125rem);
   font-weight: 700;
   letter-spacing: 0.1em;
   line-height: 1.25;
@@ -84,7 +84,7 @@
 
 .v6-auth-brand-copy small {
   color: #717d97;
-  font-size: clamp(0.5625rem, 0.53rem + 0.2vw, 0.6875rem);
+  font-size: clamp(0.625rem, 0.58rem + 0.25vw, 0.6875rem);
   letter-spacing: 0.12em;
   line-height: 1.35;
 }
