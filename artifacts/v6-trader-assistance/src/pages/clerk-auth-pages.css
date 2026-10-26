@@ -110,7 +110,7 @@
   align-items: center;
   gap: 10px;
   color: #a99acb;
-  font-size: clamp(0.625rem, 0.59rem + 0.22vw, 0.6875rem);
+  font-size: clamp(0.65625rem, 0.62rem + 0.2vw, 0.75rem);
   font-weight: 600;
   letter-spacing: 0.16em;
   line-height: 1.4;
