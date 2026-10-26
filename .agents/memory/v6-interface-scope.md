@@ -15,11 +15,11 @@ Workspace shortcuts and Quick Actions should route to real destinations, never f
 
 ## Account flow staging
 
-Keep public Sign Up and Log In entry points clearly non-functional until real authentication is added. The intended later flow is public landing → authentication → dashboard; account profile/settings and logout should eventually return users to the public landing page.
+Use Clerk for real sign-up and login, keeping the existing public landing page and its account buttons. The public landing remains available while signed out; authenticated users enter the dashboard, and logout returns them to the landing page. Protect private API routes and keep browser-stored workspace data scoped to the Clerk user ID.
 
-**Why:** The user explicitly deferred the actual account system and asked not to imply that registration or login already works.
+**Why:** The user requested a real authentication system while preserving the existing landing page and saved browser data. Current chats, journals, settings, learning progress, and strategies are browser-local; authentication does not imply cross-device/server synchronization.
 
-**How to apply:** Do not add fake or local authentication. When implementing the later account step, use a real auth provider and connect it to the existing dashboard, profile/settings, and landing-page flow.
+**How to apply:** Do not add fake or local authentication. Keep the existing Sign Up and Log In buttons as entry points, route them to the auth provider, require a signed-in session for the app and private APIs, and scope local workspace storage by provider user ID. Do not claim local data syncs across devices.
 
 ## AI chat provider scope
 

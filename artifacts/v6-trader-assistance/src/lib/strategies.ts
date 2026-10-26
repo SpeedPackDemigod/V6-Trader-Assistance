@@ -1,3 +1,5 @@
+import { getAccountStorageKey } from "./account-storage";
+
 export const STRATEGY_STORAGE_KEY = "v6-trader-assistance:strategies:v1";
 
 export const FUTURES_SYMBOLS = ["NQ", "MNQ", "YM", "MYM"] as const;
@@ -120,13 +122,15 @@ function copyStarterStrategy(): SavedStrategy {
   };
 }
 
-export function readStoredStrategies(): StrategyStorageRead {
+export function readStoredStrategies(userId: string): StrategyStorageRead {
   if (typeof window === "undefined") {
     return { strategies: [copyStarterStrategy()], notice: "" };
   }
 
   try {
-    const raw = window.localStorage.getItem(STRATEGY_STORAGE_KEY);
+    const raw = window.localStorage.getItem(
+      getAccountStorageKey(STRATEGY_STORAGE_KEY, userId),
+    );
     if (raw === null) {
       return { strategies: [copyStarterStrategy()], notice: "" };
     }
@@ -157,9 +161,15 @@ export function readStoredStrategies(): StrategyStorageRead {
   }
 }
 
-export function persistStrategies(strategies: SavedStrategy[]): string | null {
+export function persistStrategies(
+  strategies: SavedStrategy[],
+  userId: string,
+): string | null {
   try {
-    window.localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(strategies));
+    window.localStorage.setItem(
+      getAccountStorageKey(STRATEGY_STORAGE_KEY, userId),
+      JSON.stringify(strategies),
+    );
     return null;
   } catch {
     return "This browser could not save the strategy. It will remain available until you leave this page.";

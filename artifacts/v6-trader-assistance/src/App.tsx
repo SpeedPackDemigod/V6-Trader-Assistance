@@ -3,7 +3,6 @@ import SettingsPage from "./pages/settings";
 import BacktestingPage from "./pages/backtesting";
 import StrategiesPage from "./pages/strategies";
 import AllWorkspacesPage from "./pages/all-workspaces";
-import { LandingPage, AboutUsPage } from "./pages/public-pages";
 import type { ChatInput } from "@workspace/api-client-react";
 import {
   CHAT_ATTACHMENT_ACCEPT,
@@ -23,6 +22,7 @@ import {
   readStoredStrategies,
   type SavedStrategy,
 } from "./lib/strategies";
+import { getAccountStorageKey } from "./lib/account-storage";
 import {
   useEffect,
   useRef,
@@ -290,9 +290,11 @@ function isSavedChatConversation(
   );
 }
 
-function readStoredChatHistory(): StoredChatHistory {
+function readStoredChatHistory(userId: string): StoredChatHistory {
   try {
-    const saved = window.localStorage.getItem(CHAT_HISTORY_STORAGE_KEY);
+    const saved = window.localStorage.getItem(
+      getAccountStorageKey(CHAT_HISTORY_STORAGE_KEY, userId),
+    );
     if (!saved) {
       return {
         conversations: [],
@@ -447,11 +449,13 @@ function isJournalTrade(value: unknown): value is JournalTrade {
   );
 }
 
-function readStoredJournalTrades(): JournalStorageRead {
+function readStoredJournalTrades(userId: string): JournalStorageRead {
   if (typeof window === "undefined") return { entries: [], notice: "" };
 
   try {
-    const raw = window.localStorage.getItem(JOURNAL_STORAGE_KEY);
+    const raw = window.localStorage.getItem(
+      getAccountStorageKey(JOURNAL_STORAGE_KEY, userId),
+    );
     if (!raw) return { entries: [], notice: "" };
 
     const parsed: unknown = JSON.parse(raw);
@@ -884,10 +888,15 @@ function ChartWorkspace({
   );
 }
 
-function App() {
-  const [publicPage, setPublicPage] = useState<"landing" | "about" | "app">(
-    "landing",
-  );
+function App({
+  userId,
+  initialSection,
+  onLogout,
+}: {
+  userId: string;
+  initialSection?: string;
+  onLogout: () => void;
+}) {
   const [activeNavigation, setActiveNavigation] = useState("Chat");
   const [isDedicatedChatOpen, setIsDedicatedChatOpen] = useState(false);
   const [isTradeJournalOpen, setIsTradeJournalOpen] = useState(false);
@@ -899,7 +908,7 @@ function App() {
   const [isAllWorkspacesOpen, setIsAllWorkspacesOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [strategyStorageRead] = useState(readStoredStrategies);
+  const [strategyStorageRead] = useState(() => readStoredStrategies(userId));
   const [strategies, setStrategies] = useState<SavedStrategy[]>(
     strategyStorageRead.strategies,
   );
@@ -916,7 +925,7 @@ function App() {
   const [selectedChartTab, setSelectedChartTab] =
     useState<(typeof chartTabs)[number]>("Chart");
   const [draft, setDraft] = useState("");
-  const [chatHistoryRead] = useState(readStoredChatHistory);
+  const [chatHistoryRead] = useState(() => readStoredChatHistory(userId));
   const [chatConversations, setChatConversations] = useState(
     chatHistoryRead.conversations,
   );
@@ -942,7 +951,7 @@ function App() {
   const [pendingAttachments, setPendingAttachments] = useState<
     LocalChatAttachment[]
   >([]);
-  const [journalStorageRead] = useState(readStoredJournalTrades);
+  const [journalStorageRead] = useState(() => readStoredJournalTrades(userId));
   const [userJournalTrades, setUserJournalTrades] = useState(
     journalStorageRead.entries,
   );
@@ -990,7 +999,7 @@ function App() {
   useEffect(() => {
     try {
       window.localStorage.setItem(
-        CHAT_HISTORY_STORAGE_KEY,
+        getAccountStorageKey(CHAT_HISTORY_STORAGE_KEY, userId),
         JSON.stringify({
           version: 1,
           activeConversationId,
@@ -1001,7 +1010,7 @@ function App() {
     } catch {
       setChatHistoryStorageError(true);
     }
-  }, [activeConversationId, chatConversations]);
+  }, [activeConversationId, chatConversations, userId]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -1214,6 +1223,10 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    if (initialSection) handleNavigation(initialSection);
+  }, [initialSection]);
+
   const handleWorkspaceNavigation = (name: string) => {
     if (name === "Futures Trading") {
       returnToDashboard(name);
@@ -1250,12 +1263,12 @@ function App() {
   const handleLogout = () => {
     closeProfileMenu();
     returnToDashboard("Futures Trading");
-    setPublicPage("landing");
+    onLogout();
   };
 
   const updateStrategies = (nextStrategies: SavedStrategy[]) => {
     setStrategies(nextStrategies);
-    const notice = persistStrategies(nextStrategies);
+    const notice = persistStrategies(nextStrategies, userId);
     setStrategyStorageNotice(notice ?? "");
     if (
       !nextStrategies.some((strategy) => strategy.id === selectedStrategyId)
@@ -1279,7 +1292,7 @@ function App() {
     setUserJournalTrades(nextUserTrades);
     try {
       window.localStorage.setItem(
-        JOURNAL_STORAGE_KEY,
+        getAccountStorageKey(JOURNAL_STORAGE_KEY, userId),
         JSON.stringify(nextUserTrades),
       );
       setJournalStorageNotice(
@@ -1544,43 +1557,6 @@ function App() {
       journalFilter === "All" ||
       (journalFilter === "Wins" ? trade.pnl > 0 : trade.pnl <= 0),
   );
-  if (publicPage === "landing") {
-    return (
-      <>
-        <LandingPage
-          onGetStarted={() => setPublicPage("app")}
-          onAboutUs={() => setPublicPage("about")}
-          onAccountAction={(action) =>
-            notify(`${action} is not available yet.`)
-          }
-          onOpenFeature={(section) => {
-            setPublicPage("app");
-            handleNavigation(section);
-          }}
-        />
-        {toast && (
-          <div
-            className="toast-message"
-            role="status"
-            data-testid="status-toast"
-          >
-            <span>{toast}</span>
-            <button
-              aria-label="Dismiss notification"
-              onClick={() => setToast("")}
-              data-testid="button-dismiss-toast"
-            >
-              <X size={13} />
-            </button>
-          </div>
-        )}
-      </>
-    );
-  }
-
-  if (publicPage === "about") {
-    return <AboutUsPage onBack={() => setPublicPage("landing")} />;
-  }
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -2534,9 +2510,9 @@ function App() {
             </div>
           </section>
         ) : isEducationOpen ? (
-          <EducationPage onBack={returnToDashboard} />
+          <EducationPage onBack={returnToDashboard} userId={userId} />
         ) : isSettingsOpen ? (
-          <SettingsPage onBack={returnToDashboard} />
+          <SettingsPage onBack={returnToDashboard} userId={userId} />
         ) : isBacktestingOpen ? (
           <BacktestingPage
             strategies={strategies}

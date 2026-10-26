@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getAccountStorageKey } from "../lib/account-storage";
 import {
   ArrowLeft,
   BookOpen,
@@ -239,9 +240,9 @@ const practiceScenarios = [
 
 const storageKey = "v6-trading-academy-progress:v1";
 
-function readProgress(): string[] {
+function readProgress(userId: string): string[] {
   try {
-    const saved = localStorage.getItem(storageKey);
+    const saved = localStorage.getItem(getAccountStorageKey(storageKey, userId));
     const parsed: unknown = saved ? JSON.parse(saved) : [];
     return Array.isArray(parsed)
       ? parsed.filter((item): item is string => typeof item === "string")
@@ -251,8 +252,14 @@ function readProgress(): string[] {
   }
 }
 
-export default function EducationPage({ onBack }: { onBack?: () => void }) {
-  const [completed, setCompleted] = useState<string[]>(readProgress);
+export default function EducationPage({
+  onBack,
+  userId,
+}: {
+  onBack?: () => void;
+  userId: string;
+}) {
+  const [completed, setCompleted] = useState<string[]>(() => readProgress(userId));
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showPractice, setShowPractice] = useState(false);
@@ -262,11 +269,14 @@ export default function EducationPage({ onBack }: { onBack?: () => void }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(completed));
+      localStorage.setItem(
+        getAccountStorageKey(storageKey, userId),
+        JSON.stringify(completed),
+      );
     } catch {
       // Progress remains available for this session if storage is unavailable.
     }
-  }, [completed]);
+  }, [completed, userId]);
 
   const progress = Math.round((completed.length / lessons.length) * 100);
   const scenario = practiceScenarios[scenarioIndex];

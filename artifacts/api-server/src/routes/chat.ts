@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { getAuth } from "@clerk/express";
 import {
   CreateChatCompletionBody,
   CreateChatCompletionResponse,
@@ -6,6 +7,15 @@ import {
 import { PDFParse } from "pdf-parse";
 
 const router: IRouter = Router();
+const requireAuth: import("express").RequestHandler = (req, res, next) => {
+  if (!getAuth(req).userId) {
+    res.status(401).json({
+      error: "Sign in to use the V6 chat.",
+    });
+    return;
+  }
+  next();
+};
 const CHAT_REQUEST_WINDOW_MS = 60_000;
 const CHAT_REQUESTS_PER_WINDOW = 30;
 const MAX_HISTORY_CONTEXT_CHARS = 24_000;
@@ -109,7 +119,7 @@ async function extractPdfText(
   }
 }
 
-router.post("/chat/completions", async (req, res): Promise<void> => {
+router.post("/chat/completions", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreateChatCompletionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getAccountStorageKey } from "../lib/account-storage";
 import {
   Settings2,
   SlidersHorizontal,
@@ -36,9 +37,9 @@ const defaults: Settings = {
   confirmBeforeAnalysis: false,
 };
 
-function readSettings(): Settings {
+function readSettings(userId: string): Settings {
   try {
-    const saved = localStorage.getItem(storageKey);
+    const saved = localStorage.getItem(getAccountStorageKey(storageKey, userId));
     if (!saved) return defaults;
 
     const parsed = JSON.parse(saved);
@@ -144,18 +145,27 @@ function SectionTitle({
   );
 }
 
-export default function SettingsPage({ onBack }: { onBack?: () => void }) {
-  const [settings, setSettings] = useState<Settings>(readSettings);
+export default function SettingsPage({
+  onBack,
+  userId,
+}: {
+  onBack?: () => void;
+  userId: string;
+}) {
+  const [settings, setSettings] = useState<Settings>(() => readSettings(userId));
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(settings));
+      localStorage.setItem(
+        getAccountStorageKey(storageKey, userId),
+        JSON.stringify(settings),
+      );
       setSaved(true);
     } catch {
       setSaved(false);
     }
-  }, [settings]);
+  }, [settings, userId]);
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((previous) => ({
