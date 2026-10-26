@@ -10,7 +10,7 @@
   flex-direction: column;
   /* Allow tall auth forms to scroll instead of being clipped on short screens. */
   overflow-x: hidden;
-  padding: 0 clamp(16px, 6vw, 92px);
+  padding: 0 clamp(20px, 6vw, 92px);
   background:
     radial-gradient(ellipse at 72% 45%, rgba(69, 48, 127, 0.19), transparent 34rem),
     radial-gradient(ellipse at 18% 100%, rgba(48, 42, 93, 0.13), transparent 30rem),
@@ -53,7 +53,7 @@
 
 .v6-auth-brand {
   display: inline-flex;
-  min-height: clamp(64px, 6.4vw, 84px);
+  min-height: 84px;
   max-width: 100%;
   align-items: center;
   gap: clamp(9px, 1.2vw, 12px);
@@ -71,21 +71,21 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: clamp(3px, 0.5vw, 5px);
+  gap: 5px;
 }
 
 .v6-auth-brand-copy strong {
   color: #e8e9f2;
   font-size: clamp(0.75rem, 0.68rem + 0.32vw, 0.8125rem);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   line-height: 1.25;
 }
 
 .v6-auth-brand-copy small {
   color: #717d97;
   font-size: clamp(0.625rem, 0.58rem + 0.25vw, 0.6875rem);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   line-height: 1.35;
 }
 
@@ -97,7 +97,7 @@
   align-items: center;
   gap: clamp(40px, 8vw, 118px);
   align-self: center;
-  padding: clamp(34px, 5vw, 50px) 0 clamp(38px, 5.4vw, 58px);
+  padding: 50px 0 58px;
 }
 
 .v6-auth-intro {
@@ -112,7 +112,7 @@
   color: #a99acb;
   font-size: clamp(0.65625rem, 0.62rem + 0.2vw, 0.75rem);
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.17em;
   line-height: 1.4;
 }
 
@@ -124,12 +124,12 @@
 }
 
 .v6-auth-intro h1 {
-  margin: clamp(16px, 2.2vw, 24px) 0 clamp(10px, 1.4vw, 16px);
+  margin: 24px 0 16px;
   color: #f0eff7;
   font-size: clamp(2.1875rem, 4.2vw, 3.4375rem);
   font-weight: 560;
   letter-spacing: -0.055em;
-  line-height: 1.08;
+  line-height: 1.07;
   text-wrap: balance;
 }
 
@@ -138,7 +138,7 @@
   margin: 0;
   color: #a8b0c2;
   font-size: clamp(0.8125rem, 0.78rem + 0.25vw, 0.9375rem);
-  line-height: 1.75;
+  line-height: 1.8;
   text-wrap: pretty;
 }
 
@@ -146,9 +146,9 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  margin-top: clamp(26px, 4vw, 47px);
+  margin-top: 47px;
   color: #818ba3;
-  font-size: clamp(0.6875rem, 0.67rem + 0.1vw, 0.75rem);
+  font-size: clamp(0.6875rem, 0.66rem + 0.12vw, 0.75rem);
   letter-spacing: 0.03em;
   line-height: 1.5;
 }
@@ -169,7 +169,7 @@
 
 .v6-auth-footer {
   display: flex;
-  min-height: clamp(50px, 4.6vw, 59px);
+  min-height: 59px;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
@@ -178,7 +178,7 @@
   border-top: 1px solid rgba(134, 151, 190, 0.12);
   color: #59647b;
   font-size: clamp(0.6875rem, 0.66rem + 0.16vw, 0.75rem);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.11em;
   line-height: 1.5;
 }
 
@@ -209,34 +209,32 @@
 /* Tablets and phones: one centred column so text never gets squeezed. */
 @media (max-width: 900px) {
   .v6-auth-page {
-    padding-inline: clamp(16px, 5vw, 36px);
+    padding-inline: clamp(18px, 5vw, 36px);
   }
 
   .v6-auth-brand {
-    min-height: 64px;
+    min-height: 70px;
   }
 
   .v6-auth-content {
     max-width: 470px;
     grid-template-columns: minmax(0, 1fr);
-    gap: 26px;
-    padding: 42px 0 40px;
+    gap: 25px;
+    padding: 48px 0 46px;
   }
 
   .v6-auth-intro {
-    max-width: 470px;
+    max-width: 450px;
   }
 
   .v6-auth-intro h1 {
-    margin: 16px 0 10px;
-    font-size: clamp(1.875rem, 7.6vw, 2.875rem);
-    line-height: 1.1;
+    margin: 18px 0 10px;
+    font-size: clamp(2.125rem, 9vw, 2.875rem);
   }
 
   .v6-auth-intro > p {
     max-width: 100%;
-    font-size: clamp(0.8125rem, 3.4vw, 0.9375rem);
-    line-height: 1.7;
+    font-size: clamp(0.8125rem, 3.2vw, 0.9375rem);
   }
 
   .v6-auth-note {
@@ -262,15 +260,11 @@
 
 @media (max-width: 440px) {
   .v6-auth-content {
-    padding-top: 30px;
-  }
-
-  .v6-auth-intro h1 {
-    letter-spacing: -0.045em;
+    padding-top: 34px;
   }
 
   .v6-auth-footer {
-    letter-spacing: 0.055em;
+    letter-spacing: 0.06em;
   }
 }
 
