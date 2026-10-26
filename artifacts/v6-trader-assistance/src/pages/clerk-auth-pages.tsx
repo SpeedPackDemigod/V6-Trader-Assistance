@@ -60,6 +60,8 @@ export const appearance = {
       border: "0",
       borderRadius: "0",
       boxShadow: "none",
+      /* Desktop keeps Clerk's 32px gutter; small screens reclaim text width. */
+      paddingInline: "clamp(1.125rem, 1rem + 1.6vw, 2rem)",
     },
     footer: {
       background: "transparent",
