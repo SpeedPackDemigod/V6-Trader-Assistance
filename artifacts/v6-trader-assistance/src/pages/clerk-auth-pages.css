@@ -263,6 +263,15 @@
     padding-top: 34px;
   }
 
+  /* Tighter tracking keeps the small brand/eyebrow labels on one line at 320px. */
+  .v6-auth-brand-copy small {
+    letter-spacing: 0.11em;
+  }
+
+  .v6-auth-eyebrow {
+    letter-spacing: 0.14em;
+  }
+
   .v6-auth-footer {
     letter-spacing: 0.06em;
   }
