@@ -20,17 +20,15 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Generate a V6 trading education response
  */
-export const createChatCompletionBodyMessagesItemContentMax = 1000;
 
-export const createChatCompletionBodyMessagesMax = 12;
 
 
 
 export const CreateChatCompletionBody = zod.object({
   "messages": zod.array(zod.object({
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string().min(1).max(createChatCompletionBodyMessagesItemContentMax)
-})).min(1).max(createChatCompletionBodyMessagesMax)
+  "content": zod.string().min(1).describe('User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit.')
+})).min(1)
 })
 
 export const CreateChatCompletionResponse = zod.object({

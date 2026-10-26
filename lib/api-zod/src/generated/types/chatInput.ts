@@ -8,9 +8,6 @@
 import type { ChatMessage } from './chatMessage';
 
 export interface ChatInput {
-  /**
-     * @minItems 1
-     * @maxItems 12
-     */
+  /** @minItems 1 */
   messages: ChatMessage[];
 }

@@ -10,8 +10,8 @@ import type { ChatMessageRole } from './chatMessageRole';
 export interface ChatMessage {
   role: ChatMessageRole;
   /**
+     * User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit.
      * @minLength 1
-     * @maxLength 1000
      */
   content: string;
 }

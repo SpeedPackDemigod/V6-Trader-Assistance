@@ -7,6 +7,7 @@ import {
 const router: IRouter = Router();
 const CHAT_REQUEST_WINDOW_MS = 60_000;
 const CHAT_REQUESTS_PER_WINDOW = 30;
+const MAX_HISTORY_CONTEXT_CHARS = 24_000;
 const OPENROUTER_CHAT_COMPLETIONS_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_FREE_MODEL = "openrouter/free";
@@ -32,18 +33,44 @@ function isChatRateLimited(now = Date.now()): boolean {
   return false;
 }
 
+function selectRecentHistory<T extends { content: string }>(messages: T[]): T[] {
+  const selected: T[] = [];
+  let contentLength = 0;
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (contentLength + message.content.length > MAX_HISTORY_CONTEXT_CHARS) {
+      break;
+    }
+    selected.unshift(message);
+    contentLength += message.content.length;
+  }
+
+  return selected;
+}
+
 router.post("/chat/completions", async (req, res): Promise<void> => {
   const parsed = CreateChatCompletionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
-      error:
-        "Enter a message under 1,000 characters. The recent conversation is limited to 12 messages.",
+      error: "The conversation contains an invalid message. Please try again.",
       code: "INVALID_REQUEST",
     });
     return;
   }
 
   const lastMessage = parsed.data.messages.at(-1);
+  const oversizedUserMessage = parsed.data.messages.some(
+    ({ role, content }) => role === "user" && content.length > 1000,
+  );
+  if (oversizedUserMessage) {
+    res.status(400).json({
+      error: "Each message must be 1,000 characters or fewer.",
+      code: "INVALID_REQUEST",
+    });
+    return;
+  }
+
   if (
     !lastMessage ||
     lastMessage.role !== "user" ||
@@ -86,7 +113,7 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
         max_tokens: 8192,
         messages: [
           { role: "system", content: V6_SYSTEM_PROMPT },
-          ...parsed.data.messages.map(({ role, content }) => ({
+          ...selectRecentHistory(parsed.data.messages).map(({ role, content }) => ({
             role,
             content,
           })),

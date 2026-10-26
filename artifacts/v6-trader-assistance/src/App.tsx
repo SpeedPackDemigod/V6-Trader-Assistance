@@ -76,6 +76,8 @@ type StoredChatHistory = {
 };
 
 const CHAT_HISTORY_STORAGE_KEY = "v6-trader-assistance:chat-history:v1";
+const MAX_CHAT_REQUEST_BYTES = 48 * 1024;
+const chatRequestEncoder = new TextEncoder();
 
 function isLocalMessage(value: unknown): value is LocalMessage {
   if (typeof value !== "object" || value === null) return false;
@@ -87,6 +89,30 @@ function isLocalMessage(value: unknown): value is LocalMessage {
     "text" in value &&
     typeof value.text === "string"
   );
+}
+
+function selectChatRequestHistory(
+  messages: LocalMessage[],
+): ChatInput["messages"] {
+  const selected: ChatInput["messages"] = [];
+  let requestBytes = 15;
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const { role, text: content } = messages[index];
+    const message = { role, content };
+    const messageBytes = chatRequestEncoder.encode(
+      JSON.stringify(message),
+    ).length;
+    const separatorBytes = selected.length > 0 ? 1 : 0;
+    if (requestBytes + messageBytes + separatorBytes > MAX_CHAT_REQUEST_BYTES) {
+      break;
+    }
+    selected.unshift(message);
+    requestBytes += messageBytes + separatorBytes;
+  }
+
+  if (selected[0]?.role === "assistant") selected.shift();
+  return selected;
 }
 
 function isSavedChatConversation(
@@ -1109,9 +1135,7 @@ function App() {
       text,
     };
     const requestMessages: ChatInput = {
-      messages: [...messages, userMessage]
-        .slice(-12)
-        .map(({ role, text: content }) => ({ role, content })),
+      messages: selectChatRequestHistory([...messages, userMessage]),
     };
 
     setChatError("");
