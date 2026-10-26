@@ -14,6 +14,12 @@ export const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
 const logoImageUrl = `${window.location.origin}${basePath}/logo.svg`;
 
+/* Fluid type scale: readable at 320px, comfortable at 1440px. */
+const labelSize = "clamp(0.75rem, 0.73rem + 0.18vw, 0.8125rem)";
+const helperSize = "clamp(0.75rem, 0.73rem + 0.18vw, 0.8125rem)";
+const controlSize = "clamp(0.875rem, 0.85rem + 0.12vw, 0.9375rem)";
+const controlHeight = "clamp(2.75rem, 2.66rem + 0.4vw, 2.9rem)";
+
 export const appearance = {
   options: {
     logoPlacement: "inside" as const,
@@ -59,19 +65,22 @@ export const appearance = {
       background: "transparent",
       border: "0",
       boxShadow: "none",
+      fontSize: "clamp(0.6875rem, 0.66rem + 0.15vw, 0.75rem)",
+      lineHeight: "1.5",
     },
     headerTitle: {
       color: "#f1f1f8",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "22px",
+      fontSize: "clamp(1.25rem, 1.14rem + 0.45vw, 1.5rem)",
       fontWeight: "650",
       letterSpacing: "-0.04em",
+      lineHeight: "1.25",
     },
     headerSubtitle: {
       color: "#9ca6bc",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "13px",
-      lineHeight: "1.65",
+      fontSize: "clamp(0.8125rem, 0.79rem + 0.2vw, 0.9375rem)",
+      lineHeight: "1.6",
     },
     socialButtonsBlockButton: {
       background: "#10172a",
@@ -79,19 +88,21 @@ export const appearance = {
       borderRadius: "5px",
       boxShadow: "none",
       color: "#e8e9f2",
-      minHeight: "42px",
+      minHeight: controlHeight,
     },
     socialButtonsBlockButtonText: {
       color: "#e8e9f2",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "13px",
+      fontSize: controlSize,
       fontWeight: "550",
+      lineHeight: "1.4",
     },
     formFieldLabel: {
       color: "#c5cada",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "12px",
+      fontSize: labelSize,
       fontWeight: "550",
+      lineHeight: "1.4",
     },
     formFieldInput: {
       background: "#080d19",
@@ -99,9 +110,33 @@ export const appearance = {
       borderRadius: "5px",
       color: "#f0eff7",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "13px",
-      minHeight: "42px",
+      /* 16px minimum keeps iOS from zooming the page on focus. */
+      fontSize: "clamp(1rem, 0.96rem + 0.15vw, 1.0625rem)",
+      lineHeight: "1.4",
+      minHeight: controlHeight,
       boxShadow: "none",
+    },
+    formFieldHintText: {
+      color: "#9ca6bc",
+      fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+      fontSize: helperSize,
+      lineHeight: "1.5",
+    },
+    formFieldErrorText: {
+      fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+      fontSize: helperSize,
+      lineHeight: "1.5",
+    },
+    formFieldWarningText: {
+      fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+      fontSize: helperSize,
+      lineHeight: "1.5",
+    },
+    formFieldSuccessText: {
+      color: "#72cdb8",
+      fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+      fontSize: helperSize,
+      lineHeight: "1.5",
     },
     formButtonPrimary: {
       background: "linear-gradient(130deg, #7954ce, #5940a1)",
@@ -109,9 +144,10 @@ export const appearance = {
       borderRadius: "5px",
       color: "#ffffff",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "13px",
+      fontSize: controlSize,
       fontWeight: "650",
-      minHeight: "43px",
+      lineHeight: "1.3",
+      minHeight: controlHeight,
       boxShadow: "0 8px 24px rgba(92, 59, 170, 0.2)",
     },
     footerAction: {
@@ -120,13 +156,15 @@ export const appearance = {
     footerActionText: {
       color: "#9ca6bc",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "12px",
+      fontSize: labelSize,
+      lineHeight: "1.5",
     },
     footerActionLink: {
       color: "#c2aaff",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "12px",
+      fontSize: labelSize,
       fontWeight: "600",
+      lineHeight: "1.5",
       textDecoration: "none",
     },
     dividerLine: {
@@ -135,10 +173,8 @@ export const appearance = {
     dividerText: {
       color: "#7f8aa2",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "11px",
-    },
-    formFieldSuccessText: {
-      color: "#72cdb8",
+      fontSize: "clamp(0.6875rem, 0.67rem + 0.15vw, 0.75rem)",
+      lineHeight: "1.4",
     },
     alert: {
       background: "rgba(145, 54, 77, 0.14)",
@@ -148,7 +184,8 @@ export const appearance = {
     alertText: {
       color: "#f2b3bf",
       fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-      fontSize: "12px",
+      fontSize: helperSize,
+      lineHeight: "1.55",
     },
     logoBox: {
       border: "1px solid rgba(178, 146, 255, 0.32)",
@@ -158,14 +195,26 @@ export const appearance = {
     logoImage: {
       objectFit: "contain",
     },
+    identityPreviewText: {
+      fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+      fontSize: "clamp(0.8125rem, 0.79rem + 0.15vw, 0.875rem)",
+      lineHeight: "1.5",
+    },
     identityPreviewEditButton: {
       color: "#c2aaff",
+      fontSize: labelSize,
+    },
+    formResendCodeLink: {
+      fontSize: labelSize,
+      lineHeight: "1.5",
     },
     otpCodeFieldInput: {
       background: "#080d19",
       border: "1px solid rgba(134, 151, 190, 0.25)",
       borderRadius: "5px",
       color: "#f0eff7",
+      fontSize: "clamp(1rem, 0.96rem + 0.15vw, 1.125rem)",
+      lineHeight: "1.4",
     },
     formFieldRow: {
       gap: "6px",
