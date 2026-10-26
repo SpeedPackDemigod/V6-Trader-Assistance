@@ -17,13 +17,46 @@ export const ChatMessageRole = {
   assistant: 'assistant',
 } as const;
 
+export type ChatAttachmentMimeType = typeof ChatAttachmentMimeType[keyof typeof ChatAttachmentMimeType];
+
+
+export const ChatAttachmentMimeType = {
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+  'image/webp': 'image/webp',
+  'application/pdf': 'application/pdf',
+  'text/plain': 'text/plain',
+  'text/markdown': 'text/markdown',
+  'text/csv': 'text/csv',
+  'application/json': 'application/json',
+} as const;
+
+export type ChatAttachmentEncoding = typeof ChatAttachmentEncoding[keyof typeof ChatAttachmentEncoding];
+
+
+export const ChatAttachmentEncoding = {
+  base64: 'base64',
+  text: 'text',
+} as const;
+
+export interface ChatAttachment {
+  /** @maxLength 80 */
+  id: string;
+  /** @maxLength 255 */
+  name: string;
+  mimeType: ChatAttachmentMimeType;
+  encoding: ChatAttachmentEncoding;
+  truncated?: boolean;
+  /** @maxLength 7000000 */
+  content: string;
+}
+
 export interface ChatMessage {
   role: ChatMessageRole;
-  /**
-     * User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit.
-     * @minLength 1
-     */
+  /** User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit. */
   content: string;
+  /** @maxItems 4 */
+  attachments?: ChatAttachment[];
 }
 
 export interface ChatInput {
@@ -31,8 +64,17 @@ export interface ChatInput {
   messages: ChatMessage[];
 }
 
+export type ChatCompletionProcessedAttachmentsItem = {
+  id: string;
+  /** @maxLength 40000 */
+  text: string;
+  truncated?: boolean;
+};
+
 export interface ChatCompletion {
   reply: string;
+  /** @maxItems 8 */
+  processedAttachments?: ChatCompletionProcessedAttachmentsItem[];
 }
 
 export type ChatErrorCode = typeof ChatErrorCode[keyof typeof ChatErrorCode];

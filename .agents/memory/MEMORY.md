@@ -1,1 +1,2 @@
 - [V6 interface scope](v6-interface-scope.md) — Preserve the approved dashboard; implement one requested feature at a time without external services.
+- [PDF extraction runtime](pdf-extraction-runtime.md) — Keep `pdf-parse` external to the API esbuild bundle so its Node canvas dependency resolves at runtime.

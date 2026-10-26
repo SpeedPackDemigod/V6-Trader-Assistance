@@ -3,11 +3,22 @@ import {
   CreateChatCompletionBody,
   CreateChatCompletionResponse,
 } from "@workspace/api-zod";
+import { PDFParse } from "pdf-parse";
 
 const router: IRouter = Router();
 const CHAT_REQUEST_WINDOW_MS = 60_000;
 const CHAT_REQUESTS_PER_WINDOW = 30;
 const MAX_HISTORY_CONTEXT_CHARS = 24_000;
+const MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024;
+const MAX_ATTACHMENT_TEXT_CHARS = 20_000;
+const MAX_DOCUMENT_CONTEXT_CHARS = 40_000;
+const ALLOWED_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+]);
 const OPENROUTER_CHAT_COMPLETIONS_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_FREE_MODEL = "openrouter/free";
@@ -49,6 +60,55 @@ function selectRecentHistory<T extends { content: string }>(messages: T[]): T[] 
   return selected;
 }
 
+function decodeBase64(content: string): Buffer | undefined {
+  if (
+    content.length === 0 ||
+    content.length % 4 !== 0 ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+      content,
+    )
+  ) {
+    return undefined;
+  }
+  const decoded = Buffer.from(content, "base64");
+  return decoded.toString("base64") === content ? decoded : undefined;
+}
+
+function hasExpectedSignature(mimeType: string, data: Buffer): boolean {
+  if (mimeType === "image/png") {
+    return data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  }
+  if (mimeType === "image/jpeg") {
+    return data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+  if (mimeType === "image/webp") {
+    return data.toString("ascii", 0, 4) === "RIFF" &&
+      data.toString("ascii", 8, 12) === "WEBP";
+  }
+  return mimeType === "application/pdf" &&
+    data.toString("ascii", 0, 5) === "%PDF-";
+}
+
+async function extractPdfText(
+  data: Buffer,
+): Promise<{ text: string; truncated: boolean }> {
+  const parser = new PDFParse({ data });
+  try {
+    const result = await parser.getText({ first: 30 });
+    const extracted = result.text.trim();
+    if (!extracted) {
+      throw new Error("This PDF has no extractable text. Scanned-only PDFs are not supported.");
+    }
+    return {
+      text: extracted.slice(0, MAX_ATTACHMENT_TEXT_CHARS),
+      truncated:
+        result.total > 30 || extracted.length > MAX_ATTACHMENT_TEXT_CHARS,
+    };
+  } finally {
+    await parser.destroy();
+  }
+}
+
 router.post("/chat/completions", async (req, res): Promise<void> => {
   const parsed = CreateChatCompletionBody.safeParse(req.body);
   if (!parsed.success) {
@@ -71,10 +131,71 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
     return;
   }
 
+  let attachmentBytes = 0;
+  let documentChars = 0;
+  let invalidAttachment = false;
+  for (const message of parsed.data.messages) {
+    if (message.attachments?.length && message.role !== "user") {
+      invalidAttachment = true;
+      break;
+    }
+    for (const attachment of message.attachments ?? []) {
+      if (attachment.mimeType.startsWith("image/")) {
+        if (attachment.encoding !== "base64") {
+          invalidAttachment = true;
+          break;
+        }
+        const data = decodeBase64(attachment.content);
+        if (!data || data.length > 900_000 ||
+            !hasExpectedSignature(attachment.mimeType, data)) {
+          invalidAttachment = true;
+          break;
+        }
+        attachmentBytes += data.length;
+      } else if (!ALLOWED_DOCUMENT_TYPES.has(attachment.mimeType)) {
+        invalidAttachment = true;
+        break;
+      } else if (attachment.encoding === "base64") {
+        if (attachment.mimeType !== "application/pdf") {
+          invalidAttachment = true;
+          break;
+        }
+        const data = decodeBase64(attachment.content);
+        if (!data || data.length > 5 * 1024 * 1024 ||
+            !hasExpectedSignature(attachment.mimeType, data)) {
+          invalidAttachment = true;
+          break;
+        }
+        attachmentBytes += data.length;
+      } else {
+        if (attachment.content.length > MAX_ATTACHMENT_TEXT_CHARS) {
+          invalidAttachment = true;
+          break;
+        }
+        documentChars += attachment.content.length;
+        attachmentBytes += Buffer.byteLength(attachment.content, "utf8");
+      }
+      if (attachmentBytes > MAX_ATTACHMENT_BYTES ||
+          documentChars > MAX_DOCUMENT_CONTEXT_CHARS) {
+        invalidAttachment = true;
+        break;
+      }
+    }
+    if (invalidAttachment) break;
+  }
+  if (invalidAttachment) {
+    res.status(400).json({
+      error: "One or more attachments are invalid or exceed the chat limits.",
+      code: "INVALID_REQUEST",
+    });
+    return;
+  }
+
   if (
     !lastMessage ||
     lastMessage.role !== "user" ||
-    lastMessage.content.trim().length === 0
+    (lastMessage.content.trim().length === 0 &&
+      (!lastMessage.attachments || lastMessage.attachments.length === 0))
   ) {
     res.status(400).json({
       error: "Add a non-empty message before sending.",
@@ -101,6 +222,112 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
     return;
   }
 
+  const recentHistory = selectRecentHistory(parsed.data.messages);
+  const processedAttachments: Array<{
+    id: string;
+    text: string;
+    truncated: boolean;
+  }> = [];
+  const openRouterMessages: Array<{
+    role: "system" | "user" | "assistant";
+    content:
+      | string
+      | Array<
+          | { type: "text"; text: string }
+          | { type: "image_url"; image_url: { url: string } }
+        >;
+  }> = [{ role: "system", content: V6_SYSTEM_PROMPT }];
+  let extractedDocumentChars = 0;
+  const documentsByMessage = recentHistory.map(
+    () => new Map<string, string>(),
+  );
+  try {
+    for (let index = recentHistory.length - 1; index >= 0; index -= 1) {
+      const message = recentHistory[index];
+      for (const attachment of [...(message.attachments ?? [])].reverse()) {
+        if (attachment.mimeType.startsWith("image/")) continue;
+        let text = attachment.content;
+        let truncated = attachment.truncated === true;
+        if (attachment.mimeType === "application/pdf" &&
+            attachment.encoding === "base64") {
+          const extraction = await extractPdfText(
+            decodeBase64(attachment.content) as Buffer,
+          );
+          text = extraction.text;
+          truncated = extraction.truncated;
+          processedAttachments.push({
+            id: attachment.id,
+            text,
+            truncated,
+          });
+        }
+        const remainingChars = Math.max(
+          0,
+          MAX_DOCUMENT_CONTEXT_CHARS - extractedDocumentChars,
+        );
+        const includedText = text.slice(0, remainingChars);
+        extractedDocumentChars += includedText.length;
+        const truncationNotice =
+          includedText.length < text.length
+            ? "\n[Only the beginning of this document fit in the available context.]"
+            : text.length >= MAX_ATTACHMENT_TEXT_CHARS
+              ? "\n[Document extraction was limited to 20,000 characters.]"
+              : "";
+        documentsByMessage[index].set(
+          attachment.id,
+          `[Attached file: ${attachment.name}]\n${includedText}${truncationNotice}${
+            truncated ? "\n[Only an excerpt of this file is available.]" : ""
+          }`,
+        );
+      }
+    }
+
+    for (const [index, message] of recentHistory.entries()) {
+      const documentParts = (message.attachments ?? [])
+        .filter((attachment) => !attachment.mimeType.startsWith("image/"))
+        .map((attachment) => documentsByMessage[index].get(attachment.id) ?? "");
+      const imageParts: Array<{
+        type: "image_url";
+        image_url: { url: string };
+      }> = [];
+      for (const attachment of message.attachments ?? []) {
+        if (attachment.mimeType.startsWith("image/")) {
+          imageParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:${attachment.mimeType};base64,${attachment.content}`,
+            },
+          });
+        }
+      }
+      const textContent = [
+        message.content,
+        ...documentParts,
+      ].filter(Boolean).join("\n\n");
+      openRouterMessages.push(
+        imageParts.length
+          ? {
+              role: message.role,
+              content: [{ type: "text", text: textContent }, ...imageParts],
+            }
+          : { role: message.role, content: textContent },
+      );
+    }
+  } catch (error) {
+    req.log.warn(
+      { errorName: error instanceof Error ? error.name : "UnknownError" },
+      "Chat attachment processing failed",
+    );
+    res.status(400).json({
+      error:
+        error instanceof Error && error.message.includes("no extractable text")
+          ? error.message
+          : "V6 could not read an attached document. Check that it is a readable, unencrypted PDF or text file.",
+      code: "INVALID_REQUEST",
+    });
+    return;
+  }
+
   try {
     const upstreamResponse = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
       method: "POST",
@@ -111,13 +338,7 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
       body: JSON.stringify({
         model: OPENROUTER_FREE_MODEL,
         max_tokens: 8192,
-        messages: [
-          { role: "system", content: V6_SYSTEM_PROMPT },
-          ...selectRecentHistory(parsed.data.messages).map(({ role, content }) => ({
-            role,
-            content,
-          })),
-        ],
+        messages: openRouterMessages,
       }),
       signal: AbortSignal.timeout(60_000),
     });
@@ -161,6 +382,21 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
     }
 
     if (!upstreamResponse.ok) {
+      if (
+        [400, 422].includes(upstreamResponse.status) &&
+        parsed.data.messages.some((message) =>
+          message.attachments?.some((attachment) =>
+            attachment.mimeType.startsWith("image/"),
+          ),
+        )
+      ) {
+        res.status(502).json({
+          error:
+            "The free model selected for this request could not process the image. It was not analyzed. Try a text description instead; V6 did not switch to a paid model.",
+          code: "UPSTREAM_ERROR",
+        });
+        return;
+      }
       req.log.warn(
         {
           model: OPENROUTER_FREE_MODEL,
@@ -203,7 +439,12 @@ router.post("/chat/completions", async (req, res): Promise<void> => {
       return;
     }
 
-    res.json(CreateChatCompletionResponse.parse({ reply }));
+    res.json(
+      CreateChatCompletionResponse.parse({
+        reply,
+        ...(processedAttachments.length ? { processedAttachments } : {}),
+      }),
+    );
   } catch (error) {
     req.log.error(
       {

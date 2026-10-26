@@ -20,6 +20,13 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Generate a V6 trading education response
  */
+export const createChatCompletionBodyMessagesItemAttachmentsItemIdMax = 80;
+
+export const createChatCompletionBodyMessagesItemAttachmentsItemNameMax = 255;
+
+export const createChatCompletionBodyMessagesItemAttachmentsItemContentMax = 7000000;
+
+export const createChatCompletionBodyMessagesItemAttachmentsMax = 4;
 
 
 
@@ -27,12 +34,31 @@ export const HealthCheckResponse = zod.object({
 export const CreateChatCompletionBody = zod.object({
   "messages": zod.array(zod.object({
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string().min(1).describe('User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit.')
+  "content": zod.string().describe('User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit.'),
+  "attachments": zod.array(zod.object({
+  "id": zod.string().max(createChatCompletionBodyMessagesItemAttachmentsItemIdMax),
+  "name": zod.string().max(createChatCompletionBodyMessagesItemAttachmentsItemNameMax),
+  "mimeType": zod.enum(['image/png', 'image/jpeg', 'image/webp', 'application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'application/json']),
+  "encoding": zod.enum(['base64', 'text']),
+  "truncated": zod.boolean().optional(),
+  "content": zod.string().max(createChatCompletionBodyMessagesItemAttachmentsItemContentMax)
+})).max(createChatCompletionBodyMessagesItemAttachmentsMax).optional()
 })).min(1)
 })
 
+export const createChatCompletionResponseProcessedAttachmentsItemTextMax = 40000;
+
+export const createChatCompletionResponseProcessedAttachmentsMax = 8;
+
+
+
 export const CreateChatCompletionResponse = zod.object({
-  "reply": zod.string()
+  "reply": zod.string(),
+  "processedAttachments": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string().max(createChatCompletionResponseProcessedAttachmentsItemTextMax),
+  "truncated": zod.boolean().optional()
+})).max(createChatCompletionResponseProcessedAttachmentsMax).optional()
 })
 
 

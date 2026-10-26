@@ -5,7 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatCompletionProcessedAttachmentsItem } from './chatCompletionProcessedAttachmentsItem';
 
 export interface ChatCompletion {
   reply: string;
+  /** @maxItems 8 */
+  processedAttachments?: ChatCompletionProcessedAttachmentsItem[];
 }

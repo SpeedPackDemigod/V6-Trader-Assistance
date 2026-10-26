@@ -6,7 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './chatAttachment';
+export * from './chatAttachmentEncoding';
+export * from './chatAttachmentMimeType';
 export * from './chatCompletion';
+export * from './chatCompletionProcessedAttachmentsItem';
 export * from './chatError';
 export * from './chatErrorCode';
 export * from './chatInput';

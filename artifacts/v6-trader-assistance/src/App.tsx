@@ -6,6 +6,19 @@ import AllWorkspacesPage from "./pages/all-workspaces";
 import { LandingPage, AboutUsPage } from "./pages/public-pages";
 import type { ChatInput } from "@workspace/api-client-react";
 import {
+  CHAT_ATTACHMENT_ACCEPT,
+  MAX_ATTACHMENT_BATCH_BYTES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_DOCUMENT_CONTEXT_CHARS,
+  blobToBase64,
+  deleteChatAttachments,
+  prepareChatAttachment,
+  readChatAttachment,
+  storeChatAttachment,
+  type LocalChatAttachment,
+  type PreparedChatAttachment,
+} from "./lib/chat-attachments";
+import {
   persistStrategies,
   readStoredStrategies,
   type SavedStrategy,
@@ -14,6 +27,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -32,6 +46,7 @@ import {
   CircleDollarSign,
   Clock3,
   Code2,
+  FileText,
   GraduationCap,
   Layers3,
   LogOut,
@@ -59,7 +74,11 @@ type LocalMessage = {
   id: number;
   role: "user" | "assistant";
   text: string;
+  attachments?: LocalChatAttachment[];
 };
+type ApiChatAttachment = NonNullable<
+  ChatInput["messages"][number]["attachments"]
+>[number];
 
 type SavedChatConversation = {
   id: string;
@@ -77,7 +96,26 @@ type StoredChatHistory = {
 
 const CHAT_HISTORY_STORAGE_KEY = "v6-trader-assistance:chat-history:v1";
 const MAX_CHAT_REQUEST_BYTES = 48 * 1024;
+const MAX_REQUEST_ATTACHMENT_COUNT = 8;
 const chatRequestEncoder = new TextEncoder();
+
+function isLocalChatAttachment(value: unknown): value is LocalChatAttachment {
+  if (typeof value !== "object" || value === null) return false;
+  return (
+    "id" in value &&
+    typeof value.id === "string" &&
+    "name" in value &&
+    typeof value.name === "string" &&
+    "mimeType" in value &&
+    typeof value.mimeType === "string" &&
+    "size" in value &&
+    typeof value.size === "number" &&
+    "kind" in value &&
+    (value.kind === "image" || value.kind === "document") &&
+    (!("preview" in value) || typeof value.preview === "string") &&
+    (!("truncated" in value) || typeof value.truncated === "boolean")
+  );
+}
 
 function isLocalMessage(value: unknown): value is LocalMessage {
   if (typeof value !== "object" || value === null) return false;
@@ -87,32 +125,150 @@ function isLocalMessage(value: unknown): value is LocalMessage {
     "role" in value &&
     (value.role === "user" || value.role === "assistant") &&
     "text" in value &&
-    typeof value.text === "string"
+    typeof value.text === "string" &&
+    (!("attachments" in value) ||
+      (Array.isArray(value.attachments) &&
+        value.attachments.every(isLocalChatAttachment)))
+  );
+}
+
+function ChatAttachmentList({
+  attachments,
+  onRemove,
+  disabled = false,
+}: {
+  attachments?: LocalChatAttachment[];
+  onRemove?: (id: string) => void;
+  disabled?: boolean;
+}) {
+  if (!attachments?.length) return null;
+  return (
+    <div className="chat-attachment-list">
+      {attachments.map((attachment) => (
+        <div className="chat-attachment-card" key={attachment.id}>
+          {attachment.kind === "image" && attachment.preview ? (
+            <img src={attachment.preview} alt={attachment.name} />
+          ) : (
+            <FileText size={17} aria-hidden="true" />
+          )}
+          <span title={attachment.name}>
+            {attachment.name}
+            {attachment.truncated ? " · excerpt" : ""}
+          </span>
+          {onRemove && (
+            <button
+              type="button"
+              aria-label={`Remove ${attachment.name}`}
+              title={`Remove ${attachment.name}`}
+              disabled={disabled}
+              onClick={() => onRemove(attachment.id)}
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
 function selectChatRequestHistory(
   messages: LocalMessage[],
-): ChatInput["messages"] {
-  const selected: ChatInput["messages"] = [];
+): LocalMessage[] {
+  const selected: LocalMessage[] = [];
   let requestBytes = 15;
 
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const { role, text: content } = messages[index];
-    const message = { role, content };
-    const messageBytes = chatRequestEncoder.encode(
-      JSON.stringify(message),
-    ).length;
+    const messageBytes = chatRequestEncoder.encode(messages[index].text).length;
     const separatorBytes = selected.length > 0 ? 1 : 0;
     if (requestBytes + messageBytes + separatorBytes > MAX_CHAT_REQUEST_BYTES) {
       break;
     }
-    selected.unshift(message);
+    selected.unshift(messages[index]);
     requestBytes += messageBytes + separatorBytes;
   }
 
   if (selected[0]?.role === "assistant") selected.shift();
   return selected;
+}
+
+async function createChatRequestHistory(
+  history: LocalMessage[],
+): Promise<ChatInput["messages"]> {
+  const selected = selectChatRequestHistory(history);
+  const request: ChatInput["messages"] = new Array(selected.length);
+  let attachmentBytes = 0;
+  let documentChars = 0;
+  let attachmentCount = 0;
+
+  for (let index = selected.length - 1; index >= 0; index -= 1) {
+    const source = selected[index];
+    const attachments: ApiChatAttachment[] = [];
+    const omittedNames: string[] = [];
+
+    for (const item of [...(source.attachments ?? [])].reverse()) {
+      if (
+        attachmentCount >= MAX_REQUEST_ATTACHMENT_COUNT ||
+        attachmentBytes >= MAX_ATTACHMENT_BATCH_BYTES
+      ) {
+        omittedNames.push(item.name);
+        continue;
+      }
+      const stored = await readChatAttachment(item.id);
+      if (!stored) {
+        if (index === selected.length - 1) {
+          throw new Error(`${item.name} is no longer available. Attach it again.`);
+        }
+        omittedNames.push(item.name);
+        continue;
+      }
+
+      const content =
+        stored.encoding === "text"
+          ? await stored.blob.text()
+          : await blobToBase64(stored.blob);
+      const nextBytes = stored.blob.size;
+      const nextDocumentChars =
+        stored.encoding === "text" && item.kind === "document"
+          ? content.length
+          : 0;
+      if (
+        attachmentBytes + nextBytes > MAX_ATTACHMENT_BATCH_BYTES ||
+        documentChars + nextDocumentChars > MAX_DOCUMENT_CONTEXT_CHARS
+      ) {
+        if (index === selected.length - 1) {
+          throw new Error("These attachments exceed the chat context limit. Remove a file and try again.");
+        }
+        omittedNames.push(item.name);
+        continue;
+      }
+
+      attachments.unshift({
+        id: item.id,
+        name: item.name,
+        mimeType: item.mimeType,
+        encoding: stored.encoding,
+        ...(item.truncated ? { truncated: true } : {}),
+        content,
+      });
+      attachmentBytes += nextBytes;
+      documentChars += nextDocumentChars;
+      attachmentCount += 1;
+    }
+
+    const baseContent =
+      source.text ||
+      (source.attachments?.length ? "Please analyze the attached file(s)." : "");
+    request[index] = {
+      role: source.role,
+      content: omittedNames.length
+        ? `${baseContent}\n[Attachment content not included: ${omittedNames.join(", ")}.]`
+        : baseContent,
+      ...(attachments.length ? { attachments } : {}),
+    };
+  }
+
+  return request;
 }
 
 function isSavedChatConversation(
@@ -783,6 +939,9 @@ function App() {
   );
   const [isSending, setIsSending] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<
+    LocalChatAttachment[]
+  >([]);
   const [journalStorageRead] = useState(readStoredJournalTrades);
   const [userJournalTrades, setUserJournalTrades] = useState(
     journalStorageRead.entries,
@@ -799,6 +958,7 @@ function App() {
   const [isProMode, setIsProMode] = useState(false);
   const [toast, setToast] = useState("");
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -869,6 +1029,91 @@ function App() {
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2800);
+  };
+
+  const handleAttachmentSelection = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    if (files.length === 0) return;
+    setChatError("");
+
+    if (pendingAttachments.length + files.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+      setChatError("Attach no more than four files to one message.");
+      return;
+    }
+
+    const prepared: PreparedChatAttachment[] = [];
+    try {
+      for (const file of files) {
+        prepared.push(await prepareChatAttachment(file));
+      }
+
+      let totalBytes = prepared.reduce(
+        (total, item) => total + item.stored.blob.size,
+        0,
+      );
+      let documentChars = 0;
+      for (const item of prepared) {
+        if (
+          item.stored.encoding === "text" &&
+          item.attachment.kind === "document"
+        ) {
+          documentChars += (await item.stored.blob.text()).length;
+        }
+      }
+      for (const attachment of pendingAttachments) {
+        const stored = await readChatAttachment(attachment.id);
+        if (!stored) continue;
+        totalBytes += stored.blob.size;
+        if (stored.encoding === "text" && attachment.kind === "document") {
+          documentChars += (await stored.blob.text()).length;
+        }
+      }
+      if (totalBytes > MAX_ATTACHMENT_BATCH_BYTES) {
+        throw new Error("Keep attachments under 6 MB combined for one message.");
+      }
+      if (documentChars > MAX_DOCUMENT_CONTEXT_CHARS) {
+        throw new Error("Document text exceeds the 40,000-character context limit.");
+      }
+
+      const storedIds: string[] = [];
+      try {
+        for (const item of prepared) {
+          await storeChatAttachment(item.attachment.id, item.stored);
+          storedIds.push(item.attachment.id);
+        }
+      } catch (error) {
+        await deleteChatAttachments(storedIds);
+        throw error;
+      }
+      setPendingAttachments((current) => [
+        ...current,
+        ...prepared.map((item) => item.attachment),
+      ]);
+    } catch (error) {
+      setChatError(
+        error instanceof Error
+          ? error.message
+          : "Could not prepare the selected attachments.",
+      );
+    }
+  };
+
+  const removePendingAttachment = (id: string) => {
+    setPendingAttachments((current) =>
+      current.filter((attachment) => attachment.id !== id),
+    );
+    void deleteChatAttachments([id]).catch(() =>
+      setChatError("Could not remove the attachment from this message."),
+    );
+  };
+
+  const clearPendingAttachments = () => {
+    const ids = pendingAttachments.map((attachment) => attachment.id);
+    setPendingAttachments([]);
+    void deleteChatAttachments(ids).catch(() => {});
   };
 
   const focusComposer = (prompt?: string) => {
@@ -1053,6 +1298,7 @@ function App() {
 
   const startNewChat = () => {
     if (isSending) return;
+    clearPendingAttachments();
     setActiveConversationId(createChatConversationId());
     setMessages([]);
     setDraft("");
@@ -1069,6 +1315,7 @@ function App() {
     );
     if (!conversation) return;
 
+    clearPendingAttachments();
     setActiveConversationId(conversation.id);
     setMessages(conversation.messages);
     setDraft("");
@@ -1116,7 +1363,15 @@ function App() {
     setChatConversations((current) =>
       current.filter((item) => item.id !== conversationId),
     );
+    void deleteChatAttachments(
+      conversation.messages.flatMap((message) =>
+        (message.attachments ?? []).map((attachment) => attachment.id),
+      ),
+    ).catch(() =>
+      setChatError("Could not remove all files from the deleted conversation."),
+    );
     if (conversationId === activeConversationId) {
+      clearPendingAttachments();
       setActiveConversationId(createChatConversationId());
       setMessages([]);
       setDraft("");
@@ -1127,20 +1382,23 @@ function App() {
   const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || text.length > 1000 || isSending) return;
+    if ((!text && pendingAttachments.length === 0) || text.length > 1000 || isSending) {
+      return;
+    }
 
     const userMessage: LocalMessage = {
       id: Date.now(),
       role: "user",
       text,
-    };
-    const requestMessages: ChatInput = {
-      messages: selectChatRequestHistory([...messages, userMessage]),
+      ...(pendingAttachments.length ? { attachments: pendingAttachments } : {}),
     };
 
     setChatError("");
     setIsSending(true);
     try {
+      const requestMessages: ChatInput = {
+        messages: await createChatRequestHistory([...messages, userMessage]),
+      };
       const response = await fetch("/api/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1180,11 +1438,59 @@ function App() {
         );
       }
 
+      const truncatedAttachmentIds = new Set<string>();
+      if (
+        typeof result === "object" &&
+        result !== null &&
+        "processedAttachments" in result &&
+        Array.isArray(result.processedAttachments)
+      ) {
+        for (const item of result.processedAttachments) {
+          if (
+            typeof item === "object" &&
+            item !== null &&
+            "id" in item &&
+            typeof item.id === "string" &&
+            "text" in item &&
+            typeof item.text === "string"
+          ) {
+            try {
+              await storeChatAttachment(item.id, {
+                blob: new Blob([item.text], { type: "text/plain;charset=utf-8" }),
+                encoding: "text",
+              });
+              if ("truncated" in item && item.truncated === true) {
+                truncatedAttachmentIds.add(item.id);
+              }
+            } catch {
+              setChatError(
+                "V6 replied, but the PDF text could not be saved for follow-ups. You may need to attach it again.",
+              );
+            }
+          }
+        }
+      }
+
       setMessages((current) => [
-        ...current,
-        userMessage,
+        ...current.map((message) => ({
+          ...message,
+          attachments: message.attachments?.map((attachment) =>
+            truncatedAttachmentIds.has(attachment.id)
+              ? { ...attachment, truncated: true }
+              : attachment,
+          ),
+        })),
+        {
+          ...userMessage,
+          attachments: userMessage.attachments?.map((attachment) =>
+            truncatedAttachmentIds.has(attachment.id)
+              ? { ...attachment, truncated: true }
+              : attachment,
+          ),
+        },
         { id: Date.now() + 1, role: "assistant", text: reply },
       ]);
+      setPendingAttachments([]);
       setDraft("");
     } catch (error) {
       setChatError(
@@ -2098,7 +2404,11 @@ function App() {
                               ? "You"
                               : "V6 Trader Assistance · local demo"}
                           </strong>
-                          <p>{message.text}</p>
+                          <p>
+                            {message.text ||
+                              (message.attachments?.length ? "Attached files" : "")}
+                          </p>
+                          <ChatAttachmentList attachments={message.attachments} />
                         </div>
                       </div>
                     ))
@@ -2130,20 +2440,32 @@ function App() {
                     {chatError}
                   </p>
                 )}
+                <div className="chat-pending-files">
+                  <ChatAttachmentList
+                    attachments={pendingAttachments}
+                    onRemove={removePendingAttachment}
+                    disabled={isSending}
+                  />
+                </div>
                 <form
                   className="chat-composer dedicated-chat-composer"
                   id="chat-composer"
                   onSubmit={sendMessage}
                 >
+                  <input
+                    ref={fileInputRef}
+                    hidden
+                    type="file"
+                    accept={CHAT_ATTACHMENT_ACCEPT}
+                    multiple
+                    onChange={handleAttachmentSelection}
+                  />
                   <button
                     type="button"
                     className="composer-icon"
                     aria-label="Attach file"
-                    onClick={() =>
-                      notify(
-                        "File attachments are not enabled in this visual demo.",
-                      )
-                    }
+                    disabled={isSending}
+                    onClick={() => fileInputRef.current?.click()}
                     data-testid="button-dedicated-attach"
                   >
                     <Paperclip size={15} />
@@ -2468,7 +2790,11 @@ function App() {
                           ? "You"
                           : "V6 Trader Assistance"}
                       </strong>
-                      <p>{message.text}</p>
+                      <p>
+                        {message.text ||
+                          (message.attachments?.length ? "Attached files" : "")}
+                      </p>
+                        <ChatAttachmentList attachments={message.attachments} />
                     </div>
                   </div>
                 ))}
@@ -2492,20 +2818,32 @@ function App() {
                     {chatError}
                   </p>
                 )}
+                <div className="chat-pending-files">
+                  <ChatAttachmentList
+                    attachments={pendingAttachments}
+                    onRemove={removePendingAttachment}
+                    disabled={isSending}
+                  />
+                </div>
                 <form
                   className="chat-composer"
                   id="chat-composer"
                   onSubmit={sendMessage}
                 >
+                  <input
+                    ref={fileInputRef}
+                    hidden
+                    type="file"
+                    accept={CHAT_ATTACHMENT_ACCEPT}
+                    multiple
+                    onChange={handleAttachmentSelection}
+                  />
                   <button
                     type="button"
                     className="composer-icon"
                     aria-label="Attach file"
-                    onClick={() =>
-                      notify(
-                        "File attachments are not enabled in this visual demo.",
-                      )
-                    }
+                    disabled={isSending}
+                    onClick={() => fileInputRef.current?.click()}
                     data-testid="button-attach"
                   >
                     <Paperclip size={15} />

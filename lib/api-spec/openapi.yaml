@@ -92,9 +92,43 @@ components:
           enum: [user, assistant]
         content:
           type: string
-          minLength: 1
           description: User messages are limited to 1,000 characters by the chat endpoint. Assistant replies are not subject to that limit.
+        attachments:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/ChatAttachment"
       required: [role, content]
+    ChatAttachment:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          maxLength: 80
+        name:
+          type: string
+          maxLength: 255
+        mimeType:
+          type: string
+          enum:
+            - image/png
+            - image/jpeg
+            - image/webp
+            - application/pdf
+            - text/plain
+            - text/markdown
+            - text/csv
+            - application/json
+        encoding:
+          type: string
+          enum: [base64, text]
+        truncated:
+          type: boolean
+        content:
+          type: string
+          maxLength: 7000000
+      required: [id, name, mimeType, encoding, content]
     ChatInput:
       type: object
       additionalProperties: false
@@ -111,6 +145,21 @@ components:
       properties:
         reply:
           type: string
+        processedAttachments:
+          type: array
+          maxItems: 8
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+                maxLength: 40000
+              truncated:
+                type: boolean
+            required: [id, text]
       required: [reply]
     ChatError:
       type: object
