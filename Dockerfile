@@ -1,9 +1,44 @@
-FROM node:20-alpine
+# ---------------------------------------------------------------------------
+# V6 Trader Assistance — production image
+#
+# The repo is a pnpm workspace; the deployable app is the static Vite SPA in
+# artifacts/v6-trader-assistance. Production serve matches
+# .replit-artifact/artifact.toml: static dist/public + "/*" -> "/index.html".
+# ---------------------------------------------------------------------------
+
+# --- Stage 1: build the SPA ------------------------------------------------
+FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --omit=dev
+
+RUN npm install -g pnpm@10.33.3
+
+# Build-time configuration (BASE_PATH must be "/" for the deployed preview).
+ENV PORT=80 \
+    BASE_PATH=/ \
+    CI=true
+
+# Optional: bake the Clerk publishable key into the bundle. It can also be
+# supplied at runtime (server.mjs injects it into index.html on startup).
+ARG VITE_CLERK_PUBLISHABLE_KEY=""
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 COPY . .
-ENV PORT=80
+
+RUN pnpm install --frozen-lockfile --filter "@workspace/v6-trader-assistance..."
+RUN pnpm --filter @workspace/v6-trader-assistance run build
+
+# --- Stage 2: serve the static build ---------------------------------------
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=80 \
+    HOST=0.0.0.0 \
+    STATIC_DIR=/app/public
+
+COPY --from=builder /app/artifacts/v6-trader-assistance/dist/public ./public
+COPY server.mjs ./server.mjs
+
 EXPOSE 80
-# IMPORTANT: your server MUST listen on 0.0.0.0 and process.env.PORT.
-CMD ["npm","start"]
+
+CMD ["node", "server.mjs"]
